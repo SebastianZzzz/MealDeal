@@ -1,0 +1,4 @@
+[
+  { "id": "sample-store-west", "name": "West Campus Market (sample)", "chain": "Sample", "address": "Ponderosa area, Vancouver — fictional demo store", "lat": 49.262, "lng": -123.255 },
+  { "id": "sample-store-east", "name": "Neighbourhood Grocer (sample)", "chain": "Sample", "address": "UBC area, Vancouver — fictional demo store", "lat": 49.254, "lng": -123.239 }
+]

@@ -15,3 +15,46 @@ button, input, select, textarea { font: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 1px solid #cad7ce; border-radius: 999px; background: white; padding: 9px 13px; cursor: pointer; }
 .chip.active { border-color: var(--green); background: #e0f2e8; color: #0d593e; font-weight: 700; }
+
+/* Planning styles stay scoped to C's screens. */
+.planning-page h1 { font-size: clamp(34px, 8vw, 43px); line-height: 1.08; letter-spacing: -1.6px; margin: 16px 0; font-weight: 800; }
+.planning-page h2 { font-size: 21px; line-height: 1.25; font-weight: 750; margin: 12px 0; }
+.planning-back { color: var(--green); text-decoration: none; display: inline-block; padding: 8px 0; }
+.planning-eyebrow { color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 1.8px; margin-top: 28px; }
+.planning-section { margin: 18px 0; }
+.planning-section > .field:first-child { margin-top: 0; }
+.planning-fieldset { border: 0; padding: 0; min-width: 0; margin: 0; }
+.planning-budget { font-size: 15px; }
+.planning-currency { display: flex; align-items: center; gap: 10px; font-size: 40px; letter-spacing: -1px; }
+.planning-currency input { font-size: 40px; font-weight: 800; padding: 6px 10px; min-width: 0; }
+.planning-small { font-size: 13px; line-height: 1.55; }
+.planning-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.planning-toggle { display: flex; gap: 12px; align-items: flex-start; margin-top: 24px; cursor: pointer; }
+.planning-toggle input { width: 21px; height: 21px; flex-shrink: 0; accent-color: var(--green); margin-top: 2px; }
+.planning-toggle small { display: block; margin-top: 4px; }
+.planning-full { width: 100%; margin-top: 20px; text-align: center; }
+.planning-disabled { opacity: .5; cursor: not-allowed; }
+.planning-error { background: #fff0ed; border: 1px solid #ecc8c1; color: #8c281e; padding: 16px; border-radius: 14px; line-height: 1.5; }
+.planning-notice { padding: 13px 16px; background: #eef1e4; border: 1px solid #dce3c6; border-radius: 14px; font-size: 13px; line-height: 1.5; margin: 10px 0; }
+.planning-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.planning-badge { background: var(--lime); border-radius: 99px; padding: 7px 11px; color: #284414; font-size: 11px; font-weight: 800; }
+.planning-recipes { list-style: none; padding: 0; margin: 20px 0; display: grid; gap: 14px; }
+.planning-recipes span { display: block; margin-top: 5px; }
+.planning-checkout { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #eaf4e9; padding: 16px; border-radius: 14px; font-weight: 700; }
+.planning-checkout strong, .planning-total { font-size: 28px; letter-spacing: -.6px; }
+.planning-costs { padding: 16px 2px; }
+.planning-costs span, .planning-costs strong { display: block; }
+.planning-costs strong { font-size: 21px; margin-top: 4px; }
+.planning-leftovers { border-top: 1px solid #e3e9e1; padding-top: 14px; margin-top: 16px; font-size: 14px; line-height: 1.6; }
+.planning-leftovers summary { cursor: pointer; font-weight: 700; }
+.planning-progress { display: block; width: 100%; height: 10px; border-radius: 99px; margin-top: 10px; accent-color: var(--green); }
+.planning-shopping { padding: 0; margin: 10px 0 0; list-style: none; }
+.planning-shopping li + li { border-top: 1px solid #e8ede5; }
+.planning-shopping-item { display: flex; gap: 12px; align-items: flex-start; padding: 16px 0; cursor: pointer; }
+.planning-shopping-item input { width: 23px; height: 23px; accent-color: var(--green); flex-shrink: 0; }
+.planning-shopping-item > span { flex: 1; min-width: 0; }
+.planning-shopping-item small { display: block; margin-top: 5px; line-height: 1.45; }
+.planning-shopping-item > strong { white-space: nowrap; font-size: 14px; }
+.planning-shopping-item.is-bought > span > strong { text-decoration: line-through; color: var(--muted); }
+.planning-source { color: var(--green); font-size: 11px; }
+.planning-page :focus-visible { outline: 3px solid #498c66; outline-offset: 3px; }

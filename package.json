@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:planning": "tsc -p tsconfig.planning-tests.json && node --test .test-build/tests/planning.test.js"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "latest",
