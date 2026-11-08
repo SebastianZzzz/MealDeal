@@ -1,5 +1,6 @@
 import type { PantryItem as LegacyPantry, UserProfile as LegacyProfile } from "@/contracts";
 import type { Equipment, MeatVeg, PantryItem, UserProfile } from "@/types";
+import { estimatePantryGrams } from "@/lib/pantry-amounts";
 
 const equipmentNames: Record<string, Equipment> = {
   stovetop: "stove", stove: "stove", pot: "pot", pan: "pan", oven: "oven",
@@ -27,8 +28,8 @@ export function adaptPantry(items: LegacyPantry[], userId: string): PantryItem[]
   return items.map((item, index) => ({
     id: item.id ?? `pantry-${index}`, userId, name: item.name,
     foodId: item.foodId ?? undefined,
-    // Onboarding uses non-positive values for owned ingredients with unknown amounts.
-    qtyG: item.qtyG > 0 ? item.qtyG : undefined,
+    // Exact grams win; otherwise a rough amount becomes an estimate. Seasonings and "not sure" are unlimited.
+    qtyG: estimatePantryGrams(item),
     updatedAt: item.updatedAt ?? new Date().toISOString(),
   }));
 }

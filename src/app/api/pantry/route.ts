@@ -3,14 +3,29 @@ import { z } from "zod";
 import { assertDatabaseConfigured, db } from "@/lib/db";
 import { getIdentity } from "@/lib/session";
 import { apiError, validationError } from "@/lib/api-error";
+import { guessPantryKind } from "@/lib/pantry-amounts";
 
 export const runtime = "nodejs";
 
 const pantrySchema = z.array(z.object({
   name: z.string().trim().min(1).max(100),
   foodId: z.string().uuid().nullable().optional(),
-  qtyG: z.number().min(0).max(100000),
+  qtyG: z.number().min(0).max(100000).default(0),
+  kind: z.enum(["seasoning", "ingredient"]).optional(),
+  amount: z.enum(["unknown", "little", "some", "plenty"]).default("unknown"),
 })).max(100);
+
+function toPantryItem(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    name: row.name,
+    foodId: row.food_id,
+    qtyG: Number(row.qty_g),
+    kind: row.kind,
+    amount: row.amount,
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
 
 function isConstraintError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error &&
@@ -26,7 +41,7 @@ export async function GET() {
   try {
     assertDatabaseConfigured();
     const result = await db.query(
-      `select p.id, p.name, p.food_id, p.qty_g, p.updated_at
+      `select p.id, p.name, p.food_id, p.qty_g, p.kind, p.amount, p.updated_at
        from pantry_items p
        join users u on u.id = p.user_id
        where u.auth0_id = $1
@@ -34,13 +49,7 @@ export async function GET() {
       [identity.sub],
     );
     return Response.json({
-      items: result.rows.map((item) => ({
-        id: item.id,
-        name: item.name,
-        foodId: item.food_id,
-        qtyG: Number(item.qty_g),
-        updatedAt: new Date(item.updated_at).toISOString(),
-      })),
+      items: result.rows.map(toPantryItem),
       mode: "database",
     });
   } catch (error) {
@@ -82,19 +91,12 @@ export async function PUT(request: Request) {
     const savedItems = [];
     for (const item of parsed.data) {
       const result = await client.query(
-        `insert into pantry_items (user_id, name, food_id, qty_g)
-         values ($1, $2, $3, $4)
-         returning id, name, food_id, qty_g, updated_at`,
-        [userId, item.name, item.foodId ?? null, item.qtyG],
+        `insert into pantry_items (user_id, name, food_id, qty_g, kind, amount)
+         values ($1, $2, $3, $4, $5, $6)
+         returning id, name, food_id, qty_g, kind, amount, updated_at`,
+        [userId, item.name, item.foodId ?? null, item.qtyG, item.kind ?? guessPantryKind(item.name), item.amount],
       );
-      const saved = result.rows[0];
-      savedItems.push({
-        id: saved.id,
-        name: saved.name,
-        foodId: saved.food_id,
-        qtyG: Number(saved.qty_g),
-        updatedAt: new Date(saved.updated_at).toISOString(),
-      });
+      savedItems.push(toPantryItem(result.rows[0]));
     }
     await client.query("commit");
     transactionOpen = false;

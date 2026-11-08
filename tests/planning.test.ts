@@ -125,6 +125,17 @@ test("adapts non-positive onboarding quantities to unknown amounts and preserves
   assert.throws(() => calculateOption(plan, request, [], items, [], "p"), /Not enough pantry/);
 });
 
+test("adapts rough onboarding amounts and never limits seasonings", () => {
+  const items = adaptPantry([
+    { id: "rice", name: "Jasmine rice", qtyG: 0, amount: "little" },
+    { id: "eggs", name: "Eggs", qtyG: 0, amount: "some" },
+    { id: "pasta", name: "Pasta", qtyG: 0, amount: "plenty" },
+    { id: "soy", name: "Soy sauce", qtyG: 0, kind: "seasoning", amount: "little" },
+    { id: "exact", name: "Rice", qtyG: 2000, amount: "little" },
+  ], "student");
+  assert.deepEqual(items.map((item) => item.qtyG), [300, 400, undefined, undefined, 2000]);
+});
+
 test("an explicit zero in the shared pantry contract still means no finite stock", () => {
   const pantry: PantryItem = { id: "empty", userId: "student", name: "Rice", qtyG: 0, updatedAt: "2026-11-07" };
   const plan = draft(1);
