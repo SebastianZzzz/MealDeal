@@ -233,11 +233,11 @@ GitHub Actions runs lint, all four suites and a production build on every pull r
 
 Built at **HackCamp 2026** by a team of four:
 
-| Area | Scope |
-| --- | --- |
-| A · Profile and UI | Onboarding, kitchen check, app shell and visual design |
-| B · Price data | Stores, flyers, price tags, deal check, nutrition, location |
-| C · Planning | Plan form, Gemini planner, pricing, shopping list, saved plans |
-| D · Cooking and community | Cooking mode, Eat Out, Food support |
+| | Member | Area | Scope |
+| --- | --- | --- | --- |
+| <img src="https://github.com/Catherine123185.png" width="40" /> | [@Catherine123185](https://github.com/Catherine123185) | A · Profile and UI | Onboarding, kitchen check, app shell, illustrations and logo |
+| <img src="https://github.com/SebastianZzzz.png" width="40" /> | [@SebastianZzzz](https://github.com/SebastianZzzz) | B · Price data · lead | Stores, flyers, price tags, deal check, nutrition, location |
+| <img src="https://github.com/Donowark.png" width="40" /> | [@Donowark](https://github.com/Donowark) | C · Planning | Plan form, Gemini planner, pricing, shopping list, saved plans |
+| <img src="https://github.com/peiyao121.png" width="40" /> | [@peiyao121](https://github.com/peiyao121) | D · Cooking and community | Cooking mode, Eat Out, Food support |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch and PR workflow. Released under the [MIT License](LICENSE).
