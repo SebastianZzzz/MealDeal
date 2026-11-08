@@ -24,6 +24,17 @@ export function available(item: SurplusListing, now: number) {
   return item.qtyLeft > 0 && Date.parse(item.pickupEnd) > now;
 }
 
+export function listingsInRange(items: SurplusListing[], origin: { lat: number; lng: number } | null, maxKm: number) {
+  return items.filter((item) => !origin || distanceKm(origin, item) <= maxKm);
+}
+
+export function listingPage(items: SurplusListing[], page: number) {
+  const pageSize = 3;
+  const pages = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.max(0, Math.min(page, pages - 1));
+  return { pages, current, visible: items.slice(current * pageSize, (current + 1) * pageSize) };
+}
+
 export function sortedListings(items: SurplusListing[], now: number, onlyAvailable: boolean,
   origin: { lat: number; lng: number } | null) {
   const filtered = items.filter((item) => !onlyAvailable || available(item, now));

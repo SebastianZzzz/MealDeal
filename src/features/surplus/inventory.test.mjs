@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createInventory, distanceKm, SURPLUS_KEY, validDraft } from "./inventory.ts";
 import { buildSampleDraft, PICKUP_DELAYS, PICKUP_DURATIONS } from "./sample-draft.ts";
-import { availability, available, sortedListings } from "./presentation.ts";
+import { availability, available, listingPage, listingsInRange, sortedListings } from "./presentation.ts";
 
 const now = Date.parse("2026-11-07T23:00:00Z");
 const fixture = () => ({
@@ -139,4 +139,22 @@ test("meal order switches between price and actual straight-line distance", () =
   const cheap = { ...fixture(), id: "cheap", lat: 49.3, price: 1 };
   assert.equal(sortedListings([near, cheap], now, true, null)[0].id, "cheap");
   assert.equal(sortedListings([cheap, near], now, true, { lat: near.lat, lng: near.lng })[0].id, "near");
+});
+
+test("pickup radius applies independently of the selected price or distance sort", () => {
+  const near = fixture();
+  const far = { ...fixture(), id: "far", lat: 50, price: 0 };
+  const origin = { lat: near.lat, lng: near.lng };
+  const inRange = listingsInRange([far, near], origin, 3);
+  assert.deepEqual(inRange.map((item) => item.id), [near.id]);
+  assert.equal(sortedListings(inRange, now, true, null)[0].id, near.id);
+  assert.equal(listingsInRange([near, far], null, 3).length, 2);
+});
+
+test("three-meal pagination clamps the page after stock or radius changes", () => {
+  const items = Array.from({ length: 8 }, (_, index) => ({ ...fixture(), id: String(index) }));
+  assert.deepEqual(listingPage(items, 1).visible.map((item) => item.id), ["3", "4", "5"]);
+  assert.equal(listingPage(items, 2).visible.length, 2);
+  assert.equal(listingPage(items.slice(0, 2), 2).current, 0);
+  assert.deepEqual(listingPage([], 10), { pages: 1, current: 0, visible: [] });
 });

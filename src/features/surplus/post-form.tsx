@@ -99,11 +99,7 @@ export function SurplusPostForm({ source = "local" }: { source?: InventorySource
         </section>
       </fieldset>
     </form>
-    <div className={styles.actionBar}>
-      <div className={styles.actionInner}>
-        <SurplusFeedback feedback={feedback} />
-        <div className={styles.actionButtons}><Link className="btn" href={browseHref}>Cancel</Link><button className="btn primary" type="submit" form="sample-meal-form" disabled={busy}>{busy ? "Publishing…" : "Publish sample"}</button></div>
-      </div>
-    </div>
+    <SurplusFeedback feedback={feedback} />
+    <footer className="action-bar"><Link className="btn" href={browseHref}>Cancel</Link><button className="btn primary" type="submit" form="sample-meal-form" disabled={busy}>{busy ? "Publishing…" : "Publish sample"}</button></footer>
   </main>;
 }

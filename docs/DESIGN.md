@@ -102,11 +102,10 @@ Rendered once in the root layout. Pages must **not** add their own logo or back 
 - **Hover darkens the same colour** (green → green-hover; outlined → mint-soft). It never switches to another variant's colour.
 - Pressed: `scale(.96)`. Disabled: 45% opacity.
 
-### Bottom action bar
-Multi-step screens (onboarding, plan, shopping) keep their main actions in **one bar fixed to the bottom of the screen**. It spans the full width, has a solid `--canvas` background and a top border, and stays there whatever the content length. It never floats in the middle of the page.
-- **Order:** secondary on the left (Previous), primary on the right and wider (Continue / Save changes).
-- The page reserves bottom padding equal to the bar's height plus the safe area, so the last field is never hidden.
-- Respect `env(safe-area-inset-bottom)`.
+### Action bar (`.action-bar`)
+Multi-step screens (onboarding, plan, shopping, Eat Out) put their main actions in **one row after all of the page's content**, separated by a top border. It scrolls with the page: **never fixed, sticky or floating** over the content.
+- **Order:** secondary on the left (Previous / Skip), primary on the right and wider (Continue / Save changes).
+- One step = one topic. Unrelated settings get their own step (Nutrition goal is separate from Shopping range), so most steps fit on one phone screen.
 
 ### Chips: multi-select (`.chip`)
 For choices where several can be on: dietary needs, allergies, cuisines, equipment, filters.
@@ -153,6 +152,18 @@ Only for long or ordered lists (units, days, meals a day, meal balance). The cus
 - Use `role="status"` and keep the line's space reserved (`min-height`) so the layout doesn't jump.
 - **Fixed templates:** the sentence is fixed and only the found value changes (bold).
 
+### Location picker (`LocationPicker`)
+The **same component** everywhere a place is needed (Cook's Shopping range step, Eat Out). Top to bottom:
+1. Map with the point and the **distance circle** (UBC until a location is set).
+2. Status line (templates above), with an inline **Clear** link once set.
+3. One row: **Use my location** + postal code + **Set** (postal format checked locally first).
+4. Distance slider (`RangeField`); the circle follows it.
+
+Only an area (about 100 m) is kept.
+
+### Long lists
+Paginate instead of one long strip: a few items per page (Eat Out: 3) with **Previous · Page n of N · Next** under the list; turning a page scrolls back to the top. When a location is set, show it in one line above the list ("Within **3 km** of **Kitsilano**" · Change).
+
 ### Notices and errors
 - `.planning-notice` (mint) for information the user should read: sample data, sync warnings.
 - `.planning-error` (danger-soft) for failures. Errors say **what to change**. Example: "The cheapest complete plan we found costs **$41.20** for 3 meals × 2 people, over your $25 budget. Raise the budget, plan fewer meals, or add food you already have."
@@ -178,13 +189,14 @@ Only for long or ordered lists (units, days, meals a day, meal balance). The cus
 
 ### Eat out
 
-- `/eat-out` and `/eat-out/shared` share the same layout. A pill view switch distinguishes the local demo from the shared preview; each explains its storage and sample limitations.
-- Meal cards show artwork, sample/availability labels, merchant, Vancouver pickup window and CAD prices. Available meals lead the list; the Available only chip hides ended and sold-out meals. Location is requested only after tapping Use my location.
-- View meal opens a native modal bottom sheet with the address, allergens, description and the screen's sole primary action, Reserve one. Escape and Close dismiss it. Focus returns to the meal button or the availability filter if that card has disappeared.
-- Publishing is a **sample composer**, not merchant onboarding. Choose one of the existing eight fictional meals; its merchant, address, coordinates and allergen declarations stay together. No new sample catalogue or required text input is introduced. The API continues to accept validated listing drafts.
-- Prices and portions use `RangeField` with minus/plus buttons. Sample UI limits: original price CAD 1–50, surplus price CAD 0–original, portions 1–20. Lowering the original price also lowers the surplus price when needed.
-- Ordered pickup choices are relative to publishing (now / 30 / 60 / 120 minutes; open for 30 / 60 / 120 minutes). Resolve these in UTC on submit, then display them in Vancouver time.
-- A full-width fixed bottom bar contains the publishing status, Cancel and Publish sample. Choices stay in place after errors. Success uses green with the meal or changed value in bold; errors use bold danger text.
+- Start with the shared `LocationPicker` and its distance circle. Keep the saved shopping area when available, allow Skip to browse all meals by price, and show three meals per page with a location summary and Change action.
+- `/eat-out` and `/eat-out/shared` share one layout. A pill switch distinguishes their storage modes; sample notices and meal labels explain that fictional offers do not hold real food.
+- Meal cards show artwork, availability, merchant, Vancouver pickup window and CAD prices. Available only hides ended and sold-out meals; available meals lead the list. The pickup radius applies to both sort orders.
+- View meal opens a native modal bottom sheet with the address, allergens, description and the sole primary reservation action. Escape and Close dismiss it; focus returns to the meal button or availability filter if the card has disappeared. The reservation action follows the details without covering them.
+- Publishing is a sample composer. Choose one of the existing eight fictional meals, keeping merchant, address, coordinates and allergen declarations together. The API still accepts validated listing drafts.
+- Prices and portions use `RangeField`. Sample UI limits: original price CAD 1–50, surplus price CAD 0–original, portions 1–20. Lowering the original price also lowers the surplus price when needed.
+- Ordered pickup choices are relative to publishing (now / 30 / 60 / 120 minutes; open for 30 / 60 / 120 minutes). Resolve them in UTC on submit and display them in Vancouver time.
+- Publishing feedback and the shared action bar follow the form. Choices remain after errors. Success uses green with the meal or changed value in bold; errors use bold danger text.
 
 ---
 
@@ -222,7 +234,7 @@ Only for long or ordered lists (units, days, meals a day, meal balance). The cus
 
 - New colours, fonts, radii or shadows in a page file.
 - A second logo, back link or menu inside a page (the top bar does that).
-- Floating action buttons in the middle of the content; use the bottom action bar.
+- Fixed, sticky or floating step buttons; put them in the action bar after the content.
 - A check mark *and* a fill for "selected".
 - Text arrows or emoji as icons.
 - Grey text for a result the user is waiting for.

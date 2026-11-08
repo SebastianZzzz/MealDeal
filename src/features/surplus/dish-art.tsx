@@ -2,6 +2,12 @@ import Image from "next/image";
 import styles from "./surplus.module.css";
 
 const PHOTOS: Record<string, string> = {
+  "sample-campus-kitchen": "/images/vegetable-rice-bowl.jpg",
+  "sample-village-bakery": "/images/bread-pastry-bag.jpg",
+  "sample-campus-sushi": "/images/sushi-roll-box.jpg",
+  "sample-neighbourhood-cafe": "/images/soup-sandwich-set.jpg",
+  "sample-curry-corner": "/images/chickpea-curry-rice.jpg",
+  "sample-green-bowl": "/images/quinoa-salad-bowl.jpg",
   "sample-noodle-bar": "/images/home-noodles.jpg",
   "sample-bento-house": "/images/home-bento.jpg",
 };
