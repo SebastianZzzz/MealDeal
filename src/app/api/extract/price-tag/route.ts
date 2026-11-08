@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PriceTagResult } from "@/types";
 import { ExtractionError, extractPriceTag, type ExtractedItem } from "@/features/catalog/extract";
 import { apiError, validationError } from "@/lib/api-error";
+import { getIdentity } from "@/lib/session";
 import { DEMO_CENTER, findNearbyStores } from "@/features/catalog/nearby";
 import type { NearbyStore } from "@/features/catalog/stores";
 
@@ -20,6 +21,8 @@ export type PriceTagResponse = Omit<PriceTagResult, "items" | "nearbyStores"> & 
 
 // POST /api/extract/price-tag (multipart: image, lat?, lng?) — the photo goes to Gemini and is then discarded.
 export async function POST(request: Request) {
+  // Each photo costs a Gemini call, so only signed-in students can use it.
+  if (!(await getIdentity())?.sub) return apiError("UNAUTHORIZED", "Please log in to read a price tag.");
   const form = await request.formData().catch(() => null);
   const image = form?.get("image");
   if (!(image instanceof File) || !image.type.startsWith("image/")) {
