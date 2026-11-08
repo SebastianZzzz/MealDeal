@@ -14,6 +14,7 @@ export function fromProfileRow(row: Record<string, unknown>): UserProfile {
     defaultServings: Number(row.default_servings),
     equipment: (row.equipment as string[]) ?? [],
     maxDistanceKm: Number(row.max_distance_km),
+    home: row.home_lat != null && row.home_lng != null ? { lat: Number(row.home_lat), lng: Number(row.home_lng) } : null,
     nutritionGoal: String(row.nutrition_goal ?? ""),
     onboardingComplete: Boolean(row.onboarding_complete),
   };

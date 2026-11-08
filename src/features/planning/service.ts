@@ -35,7 +35,11 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   if (input.profile.meatVeg === "vegetarian") {
     profile.meatVeg = "vegetarian";
   }
-  const candidates = filterProducts(catalog.products, catalog.stores, profile);
+  let candidates = filterProducts(catalog.products, catalog.stores, profile);
+  // We only have prices for a few stores so far. If none are inside the student's range, plan with the
+  // nearest ones we have and say so, rather than failing.
+  const outsideRange = Boolean(profile.home) && candidates.length === 0;
+  if (outsideRange) candidates = filterProducts(catalog.products, catalog.stores, { ...profile, home: undefined });
   const products = preferRealDeals(candidates, await loadProductDeals(candidates));
   const pantry = filterPantry(input.pantry, profile);
   if (!products.length && !pantry.some((item) => item.qtyG === undefined || item.qtyG > 0)) {
@@ -53,7 +57,9 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
     warnings.push("Sample stores and prices for development; these are not verified current offers.");
   }
   if (!profile.home) {
-    warnings.push("No home location is saved. Using the supplied demo-area stores without distance filtering.");
+    warnings.push("No shopping area is saved. Using stores near UBC; add your location in your kitchen settings.");
+  } else if (outsideRange) {
+    warnings.push(`No stores with prices are within ${profile.maxDistanceKm} km of you yet, so these plans use the nearest stores we have.`);
   }
   if (profile.allergies.length || profile.dietary.length) {
     warnings.push("Restrictions are filtered by product names. Check ingredient labels and certification before purchasing.");

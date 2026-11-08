@@ -22,6 +22,7 @@ const profileSchema = z.object({
   defaultServings: z.number().int().min(1).max(20),
   equipment: z.array(z.string().max(80)).max(30),
   maxDistanceKm: z.number().min(0.5).max(50),
+  home: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).nullable().optional(),
   nutritionGoal: z.string().max(300),
   onboardingComplete: z.boolean(),
 }).superRefine((profile, context) => {
@@ -75,8 +76,8 @@ export async function PUT(request: Request) {
       `insert into users (
         auth0_id, role, lang, units, dietary, allergies, cuisines,
         meat_veg_ratio, default_servings, equipment, max_distance_km,
-        nutrition_goal, onboarding_complete
-      ) values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        nutrition_goal, onboarding_complete, home_lat, home_lng
+      ) values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       on conflict (auth0_id) do update set
         role = excluded.role,
         lang = excluded.lang,
@@ -90,6 +91,8 @@ export async function PUT(request: Request) {
         max_distance_km = excluded.max_distance_km,
         nutrition_goal = excluded.nutrition_goal,
         onboarding_complete = excluded.onboarding_complete,
+        home_lat = excluded.home_lat,
+        home_lng = excluded.home_lng,
         updated_at = now()
       returning *`,
       [
@@ -106,6 +109,9 @@ export async function PUT(request: Request) {
         profile.maxDistanceKm,
         profile.nutritionGoal,
         profile.onboardingComplete,
+        // Store only about 100 m of precision.
+        profile.home ? Math.round(profile.home.lat * 1000) / 1000 : null,
+        profile.home ? Math.round(profile.home.lng * 1000) / 1000 : null,
       ],
     );
     return Response.json({ profile: fromProfileRow(result.rows[0]), mode: "database" });

@@ -23,6 +23,7 @@ export interface UserProfile {
   defaultServings: number;
   equipment: string[];
   maxDistanceKm: number;
+  home?: { lat: number; lng: number } | null; // shopping area, rounded to about 100 m
   nutritionGoal: string;
   onboardingComplete: boolean;
 }
