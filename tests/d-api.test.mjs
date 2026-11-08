@@ -8,6 +8,8 @@ import { getDDatabase, UpdateConflict } from "../src/features/community/database
 import { demoMealPlan } from "../src/features/cooking/mock-plan.ts";
 import { GET as resources } from "../src/app/api/resources/route.ts";
 import { verifiedIdentity } from "../src/features/community/server-runtime.ts";
+import { ApiRequestError, requireOk } from "../src/features/community/api-client.ts";
+import { syncCookingPlan } from "../src/features/cooking/cloud-client.ts";
 
 const planId = "10000000-0000-4000-8000-000000000001";
 const listingId = "20000000-0000-4000-8000-000000000001";
@@ -73,11 +75,102 @@ test("reservation reports a conditional-update miss as conflict and never retrie
   assert.equal(calls, 1);
 });
 
-test("database exceptions do not leak SQL or credentials to callers", async () => {
-  const api = surplus({ surplus: async () => ({ list: async () => { throw new Error("postgres://secret@example/private"); } }) });
+test("database exceptions are logged without leaking SQL or credentials to callers", async (context) => {
+  const logged = context.mock.method(console, "error", () => {});
+  const api = surplus({ surplus: async () => ({ list: async () => { throw Object.assign(new Error("postgres://secret@example/private"), { code: "ECONNREFUSED" }); } }) });
   const response = await api.list();
   assert.equal(response.status, 503);
-  assert.doesNotMatch(await response.text(), /secret|postgres/);
+  const body = await response.json();
+  assert.equal(body.code, "DATABASE_UNAVAILABLE");
+  assert.doesNotMatch(JSON.stringify(body), /secret|postgres/);
+  assert.equal(logged.mock.callCount(), 1);
+});
+
+async function apiFailure(response, status, code) {
+  assert.equal(response.status, status);
+  const body = await response.json();
+  assert.equal(body.code, code);
+  assert.equal(typeof body.error, "string");
+  assert.ok(body.error.length > 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  return body;
+}
+
+test("D endpoints return shared codes for validation, auth, missing plans, conflicts and storage", async () => {
+  const signedOut = surplus({ identity: async () => null });
+  await apiFailure(await signedOut.post(request(draft)), 401, "UNAUTHORIZED");
+  await apiFailure(await signedOut.reserve(listingId), 401, "UNAUTHORIZED");
+  const noCookingAuth = createCookingHandlers({ identity: async () => null, repository: async () => null });
+  await apiFailure(await noCookingAuth.get(planId), 401, "UNAUTHORIZED");
+  await apiFailure(await noCookingAuth.patch(request({ progress: { recipe: 1 } }), planId), 401, "UNAUTHORIZED");
+  for (const response of [await surplus().list(), await surplus().post(request(draft)), await surplus().reserve(listingId)]) {
+    await apiFailure(response, 503, "DATABASE_UNAVAILABLE");
+  }
+  const noCookingDb = createCookingHandlers({ identity: async () => ({ sub: "owner" }), repository: async () => null });
+  await apiFailure(await noCookingDb.get(planId), 503, "DATABASE_UNAVAILABLE");
+  await apiFailure(await noCookingDb.patch(request({ progress: { recipe: 1 } }), planId), 503, "DATABASE_UNAVAILABLE");
+  const missingPlan = createCookingHandlers({ identity: async () => ({ sub: "owner" }), repository: async () => ({ get: async () => null, save: async () => null }) });
+  await apiFailure(await missingPlan.get(planId), 404, "NOT_FOUND");
+  await apiFailure(await missingPlan.patch(request({ progress: { recipe: 1 } }), planId), 404, "NOT_FOUND");
+  const conflict = surplus({ surplus: async () => ({ reserve: async () => null }) });
+  await apiFailure(await conflict.reserve(listingId), 409, "CONFLICT");
+  const stalePlan = createCookingHandlers({ identity: async () => ({ sub: "owner" }), repository: async () => ({ save: async () => { throw new UpdateConflict("Reload before saving."); } }) });
+  const stale = await apiFailure(await stalePlan.patch(request({ progress: { recipe: 1 } }), planId), 409, "CONFLICT");
+  assert.equal(stale.error, "Reload before saving.");
+});
+
+test("validation errors identify listing, progress, ID and resource fields", async () => {
+  const listing = await apiFailure(await surplus().post(request({ ...draft, price: 11, qtyLeft: 0, lat: 100, pickupEnd: new Date(now - 1).toISOString() })), 400, "VALIDATION_FAILED");
+  for (const field of ["price", "qtyLeft", "lat", "pickupEnd"]) assert.ok(listing.fields[field]);
+  await apiFailure(await surplus().post(new Request("http://localhost/api/surplus", { method: "POST", body: "bad-json" })), 400, "VALIDATION_FAILED");
+  const invalidId = await apiFailure(await surplus().reserve(""), 400, "VALIDATION_FAILED");
+  assert.ok(invalidId.fields.id);
+  const cooking = createCookingHandlers({ identity: async () => ({ sub: "owner" }), repository: async () => null });
+  const progress = await apiFailure(await cooking.patch(request({ progress: { recipe: -1 } }), planId), 400, "VALIDATION_FAILED");
+  assert.ok(progress.fields.progress);
+  const json = new Request("http://localhost/api/cooking/plan", { method: "PATCH", body: "not-json" });
+  await apiFailure(await cooking.patch(json, planId), 400, "VALIDATION_FAILED");
+  const local = await apiFailure(await cooking.get("local-only-plan"), 400, "VALIDATION_FAILED");
+  assert.ok(local.fields.id);
+  const filters = await apiFailure(await resources(new Request(`http://localhost/api/resources?type=invalid&q=${"x".repeat(201)}`)), 400, "VALIDATION_FAILED");
+  assert.ok(filters.fields.type);
+  assert.ok(filters.fields.q);
+});
+
+test("oversized listing and progress bodies use the shared 413 error", async () => {
+  await apiFailure(await surplus().post(request({ description: "x".repeat(33000) })), 413, "PAYLOAD_TOO_LARGE");
+  const cooking = createCookingHandlers({ identity: async () => ({ sub: "owner" }), repository: async () => null });
+  await apiFailure(await cooking.patch(request({ progress: { ["x".repeat(33000)]: 1 } }), planId), 413, "PAYLOAD_TOO_LARGE");
+});
+
+test("database constraints and unexpected bugs are not mislabeled as unavailable storage", async (context) => {
+  context.mock.method(console, "error", () => {});
+  for (const [code, status, expected] of [["23505", 409, "CONFLICT"], ["23514", 400, "VALIDATION_FAILED"], ["22P02", 400, "VALIDATION_FAILED"], ["57P01", 503, "DATABASE_UNAVAILABLE"], ["42P01", 500, "INTERNAL"]]) {
+    const api = surplus({ surplus: async () => ({ list: async () => { throw Object.assign(new Error("SQL details must stay in logs"), { code }); } }) });
+    const body = await apiFailure(await api.list(), status, expected);
+    assert.doesNotMatch(body.error, /SQL details/);
+  }
+});
+
+test("browser error helper preserves server messages and field hints, including conflicts", async () => {
+  for (const [status, code] of [[400, "VALIDATION_FAILED"], [401, "UNAUTHORIZED"], [409, "CONFLICT"], [503, "DATABASE_UNAVAILABLE"]]) {
+    await assert.rejects(requireOk(Response.json({ error: "The server's specific explanation.", code, fields: { price: "Check the price." } }, { status })), error => {
+      assert.ok(error instanceof ApiRequestError);
+      assert.equal(error.message, "The server's specific explanation.");
+      assert.equal(error.code, code);
+      assert.equal(error.fields.price, "Check the price.");
+      return true;
+    });
+  }
+  await assert.rejects(requireOk(new Response("<html>Unavailable</html>", { status: 503 })), error => error instanceof ApiRequestError && error.code === "SERVICE_UNAVAILABLE" && !error.message.includes("html"));
+  await requireOk(Response.json({ listing: {} }));
+});
+
+test("cooking client keeps account errors and successful plan responses intact", async (context) => {
+  const fetch = context.mock.method(globalThis, "fetch", async () => Response.json({ error: "Please sign in to restore this plan.", code: "UNAUTHORIZED" }, { status: 401 }));
+  await assert.rejects(syncCookingPlan(planId), error => error instanceof ApiRequestError && error.message === "Please sign in to restore this plan." && error.code === "UNAUTHORIZED");
+  fetch.mock.mockImplementation(async () => Response.json({ plan: { ...demoMealPlan, id: planId } }));
+  assert.equal((await syncCookingPlan(planId, { "tomato-eggs": 2 })).id, planId);
 });
 
 test("unconfigured storage does not import or create a second database pool", async () => {

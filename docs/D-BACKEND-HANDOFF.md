@@ -14,6 +14,20 @@
 No new identity provider, image storage, payment system, merchant accounts,
 reservation roster, or shared-contract changes are introduced.
 
+## Error contract
+
+All D route failures use the shared `ApiError` (`error`, `code`, optional `fields`)
+from main. Server routes call `apiError`/`validationError`; browser clients use
+`readApiError` through D's `requireOk`. Listing field hints appear next to their
+inputs, with `aria-invalid` and linked descriptions. Reservation conflicts retain
+the server's explanation instead of being replaced with a generic sold-out text.
+
+Validation is 400, signed-out access 401, missing owned plans 404, and conflicts
+409. Missing/unreachable storage is 503; SQL constraint errors are 400/409 and
+unexpected server errors are 500. Bodies above the existing 32 KiB limit return
+413. Technical exceptions go to server logs rather than response bodies. Successful
+responses and local inventory behavior keep their existing format.
+
 ## One connection point for A
 
 `src/features/community/database.ts` defines D's small query interface:

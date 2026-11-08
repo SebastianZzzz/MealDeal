@@ -43,6 +43,19 @@ Use the integrated team build with A's database foundation and C's pages.
   check-before-you-go notice. Confirm the AMS temporary closure is visible.
 - Call `/api/resources?type=food_bank&q=AMS`; inspect the same curated record.
 
+## API errors and form feedback
+
+- Inspect D responses for invalid input, no session, a missing saved plan,
+  a reservation/progress conflict, and unavailable storage. Each non-2xx body
+  must contain the shared `error` and `code`; invalid known fields add `fields`.
+- Submit a shared listing with its price above the original price. Show the
+  server's sentence and a price-specific hint linked to the input. Keep entered
+  values on failure. Correct and resubmit: old field hints must clear.
+- Force a shared reservation conflict or account-sync failure. The page must
+  retain the server's specific explanation, including expired/changed-plan cases.
+- A non-JSON service failure must show the shared readable fallback, not a JSON
+  parsing exception. SQL details and stack traces must not appear in the UI.
+
 ## Local surplus demo
 
 - Post a fictional sample listing with one portion and a future pickup window.
