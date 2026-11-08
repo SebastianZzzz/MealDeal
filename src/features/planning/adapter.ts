@@ -18,7 +18,9 @@ export function adaptProfile(profile: LegacyProfile): UserProfile {
     id: profile.id ?? "demo-student", displayName: "",
     units: { ...profile.units, currency: "CAD" },
     dietary: profile.dietary, allergies: profile.allergies, cuisines: profile.cuisines,
-    meatVeg: meatVegNames[profile.meatVegRatio], defaultServings: profile.defaultServings,
+    // A vegetarian or vegan dietary need always means vegetarian meals.
+    meatVeg: profile.dietary.some((item) => /^(vegetarian|vegan)$/i.test(item)) ? "vegetarian" : meatVegNames[profile.meatVegRatio],
+    defaultServings: profile.defaultServings,
     equipment: [...new Set(equipment)], maxDistanceKm: profile.maxDistanceKm,
     nutritionGoal: /protein/i.test(profile.nutritionGoal) ? "high_protein" : "none",
   };
