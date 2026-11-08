@@ -3,7 +3,7 @@ import { apiError, validationError } from "@/lib/api-error";
 import { getIdentity } from "@/lib/session";
 import { allowCheck, checkChoice } from "@/lib/choice-model";
 
-const schema = z.object({ kind: z.enum(["dietary", "allergy", "equipment", "goal"]), value: z.string().max(60) });
+const schema = z.object({ kind: z.enum(["dietary", "allergy", "equipment", "goal", "pantry"]), value: z.string().max(60) });
 
 // POST /api/choices/check { kind, value } -> { ok, message?, retry? }
 // Instant feedback for the "Other" inputs. The same check runs again when the profile is saved and
