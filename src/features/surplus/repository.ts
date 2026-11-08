@@ -20,19 +20,19 @@ export function createSurplusRepository(db: Database) {
       const { rows } = await db.query("SELECT * FROM surplus_listings WHERE pickup_end > clock_timestamp() ORDER BY price, pickup_end LIMIT 200", []);
       return rows.map(listingFromRow);
     },
-    async post(draft: ListingDraft, id: string): Promise<SurplusListing> {
+    async post(draft: ListingDraft, id: string, auth0Id: string): Promise<SurplusListing> {
       const { rows } = await db.query(`INSERT INTO surplus_listings
         (id, merchant_name, address, lat, lng, title, orig_price, price, qty_left,
-         pickup_start, pickup_end, allergens, description, is_sample)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true) RETURNING *`,
+         pickup_start, pickup_end, allergens, description, is_sample, posted_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,$14) RETURNING *`,
       [id, draft.merchantName, draft.address, draft.lat, draft.lng, draft.title, draft.origPrice, draft.price,
-        draft.qtyLeft, draft.pickupStart, draft.pickupEnd, draft.allergens, draft.description ?? null]);
+        draft.qtyLeft, draft.pickupStart, draft.pickupEnd, draft.allergens, draft.description ?? null, auth0Id]);
       if (!rows[0]) throw new Error("The listing was not saved.");
       return listingFromRow(rows[0]);
     },
     async reserve(id: string): Promise<SurplusListing | null> {
       // One conditional UPDATE is the atomic reservation. No read-then-write race.
-      const { rows } = await db.query(`UPDATE surplus_listings SET qty_left = qty_left - 1, updated_at = clock_timestamp()
+      const { rows } = await db.query(`UPDATE surplus_listings SET qty_left = qty_left - 1
         WHERE id = $1 AND qty_left > 0 AND pickup_end > clock_timestamp() RETURNING *`, [id]);
       return rows[0] ? listingFromRow(rows[0]) : null;
     },

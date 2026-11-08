@@ -32,16 +32,20 @@ Reference: https://www.w3.org/TR/web-locks/
 ## Shared service preview
 
 `/eat-out/shared` and `/eat-out/shared/post` call `GET/POST /api/surplus`
-and `POST /api/surplus/[id]/reserve`. Writes require Auth0. IDs are server-generated
-UUIDs; client ownership/verification claims are ignored and new listings remain
-labeled samples. A's table has no merchant ownership column.
+and `POST /api/surplus/[id]/reserve`. Writes use A's authenticated identity
+(Auth0 in production; A's demo identity is development-only). New IDs are generated
+by the server; the text ID column also accepts existing non-UUID sample IDs.
+Client ownership/verification claims are ignored; `posted_by` uses the server
+identity and new listings remain labeled samples.
 The repository uses one parameterized conditional update with `qty_left > 0`
 and an unexpired pickup window. Returning no row means 409, not success.
 
 A supplies Tiger Data through `src/lib/db.ts`; D now reuses that pool. Missing
 `DATABASE_URL` or a connection failure returns 503 without silently writing local
 inventory. A's canonical migration owns the schema; `sql/d-surplus.sql` is a
-matching reference, not another migration. Posting needs no `posted_by` field.
+matching reference, not another migration. Posting supplies the required
+`posted_by` field. Reservations do not touch `updated_at`, which A's surplus
+alignment migration removes. Cooking tables retain their UUID IDs and timestamp.
 See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md).
 The local demo guarantee and query tests do not prove database concurrency.
 

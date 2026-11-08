@@ -13,5 +13,7 @@ export async function getDDatabase(): Promise<Database | null> {
   return { query: (sql, parameters) => db.query(sql, parameters) };
 }
 
-/** Shared tables use UUID primary keys; local demo IDs stay browser-only. */
+/** Cooking plans use UUIDs; the surplus table deliberately uses text IDs. */
 export const isDatabaseId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+export const isListingId = (id: string) => id.trim().length > 0 && id.length <= 200;

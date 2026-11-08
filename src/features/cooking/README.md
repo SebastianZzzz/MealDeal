@@ -42,8 +42,9 @@ C owns navigation from `/cook/shopping` to `/cook/cooking` and writing the
 `/cook/ready` handoff; this implementation follows the superseding team update.
 A owns Auth0 and the shared Tiger Data adapter at `src/lib/db.ts`. D
 adds owner-scoped `GET/PATCH /api/cooking/[id]` endpoints and explicit account
-save/restore actions. They require Auth0 and A's database adapter; they return
-401 when signed out and 503 when shared storage is disconnected. Local saving
+save/restore actions. They use A's identity helper (Auth0 in production,
+development-only demo when enabled) and shared database adapter; they return
+401 when signed out in production and 503 when shared storage is disconnected. Local saving
 continues independently. D never inserts C's plans or changes their shopping
 data. See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md) for the
 UUID ownership mapping and C's persisted-plan prerequisite. No image storage or new identity provider

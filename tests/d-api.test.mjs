@@ -7,6 +7,7 @@ import { createCookingRepository } from "../src/features/cooking/repository.ts";
 import { getDDatabase, UpdateConflict } from "../src/features/community/database.ts";
 import { demoMealPlan } from "../src/features/cooking/mock-plan.ts";
 import { GET as resources } from "../src/app/api/resources/route.ts";
+import { verifiedIdentity } from "../src/features/community/server-runtime.ts";
 
 const planId = "10000000-0000-4000-8000-000000000001";
 const listingId = "20000000-0000-4000-8000-000000000001";
@@ -54,7 +55,8 @@ test("posting rejects malformed input and ignores client ownership/verification 
   const response = await api.post(request({ ...draft, id: "forged", userId: "someone-else", isSample: false, postedBy: "forged" }));
   assert.equal(response.status, 201);
   assert.equal(received[1], "server-id");
-  assert.equal(received.length, 2);
+  assert.equal(received.length, 3);
+  assert.equal(received[2], "auth0|owner");
   assert.equal(received[0].userId, undefined);
   assert.equal(received[0].isSample, undefined);
   assert.equal((await response.json()).listing.isSample, true);
@@ -89,32 +91,68 @@ test("unconfigured storage does not import or create a second database pool", as
   }
 });
 
-test("shared APIs reject local and malformed UUIDs before database access", async () => {
+test("cooking rejects local/malformed UUIDs and surplus rejects empty/overlong IDs", async () => {
   const fail = async () => { throw new Error("Database should not be accessed"); };
   const stock = surplus({ surplus: fail });
   const cooking = createCookingHandlers({ identity: async () => ({ sub: "auth0|owner" }), repository: fail });
   for (const id of ["local-demo", "listing' OR 1=1 --", "", "00000000-0000-0000-0000-00000000000z"]) {
-    assert.equal((await stock.reserve(id)).status, 400);
     assert.equal((await cooking.get(id)).status, 400);
     assert.equal((await cooking.patch(request({ progress: { recipe: 1 } }), id)).status, 400);
   }
+  for (const id of ["", "  ", "a".repeat(201)]) assert.equal((await stock.reserve(id)).status, 400);
 });
 
 test("posting matches A's surplus schema and preserves numeric/date values", async () => {
   const created = new Date("2026-11-07T23:00:00.123Z");
   const repository = createSurplusRepository({ query: async (sql, params) => {
-    assert.doesNotMatch(sql, /posted_by/);
-    assert.equal(params.length, 13);
+    assert.match(sql, /posted_by/);
+    assert.equal(params.length, 14);
+    assert.equal(params[13], "auth0|owner");
     return { rows: [{ id: listingId, merchant_name: draft.merchantName, address: draft.address,
       title: draft.title, lat: draft.lat, lng: draft.lng, orig_price: "10.00", price: "3.00",
       qty_left: 2, pickup_start: new Date(draft.pickupStart), pickup_end: new Date(draft.pickupEnd),
       allergens: draft.allergens, is_sample: true, created_at: created }] };
   } });
-  const saved = await repository.post(draft, listingId);
+  const saved = await repository.post(draft, listingId, "auth0|owner");
   assert.equal(saved.id, listingId);
   assert.equal(saved.price, 3);
   assert.equal(saved.createdAt, created.toISOString());
   assert.equal(saved.isSample, true);
+});
+
+test("text surplus IDs remain usable and SQL never requires the removed updated_at column", async () => {
+  const id = "sample:bread-bag' OR 1=1 --";
+  let writes = 0;
+  const repository = createSurplusRepository({ query: async (sql, params) => {
+    assert.deepEqual(params, [id]);
+    assert.doesNotMatch(sql, /updated_at/);
+    writes++;
+    return { rows: [] };
+  } });
+  const response = await surplus({ surplus: async () => repository }).reserve(id);
+  assert.equal(response.status, 409);
+  assert.equal(writes, 1);
+});
+
+test("D follows A's development demo identity but production requires Auth0", async () => {
+  const keys = ["NODE_ENV", "NEXT_PUBLIC_DEMO_MODE", "AUTH0_DOMAIN", "AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET", "AUTH0_SECRET", "APP_BASE_URL"];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  try {
+    for (const key of keys) delete process.env[key];
+    process.env.NODE_ENV = "development";
+    process.env.NEXT_PUBLIC_DEMO_MODE = "1";
+    assert.deepEqual(await verifiedIdentity(), { sub: "demo|student" });
+    process.env.NODE_ENV = "production";
+    assert.equal(await verifiedIdentity(), null);
+    process.env.NODE_ENV = "development";
+    process.env.NEXT_PUBLIC_DEMO_MODE = "0";
+    assert.equal(await verifiedIdentity(), null);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
 });
 
 test("an Auth0 user without an owned plan cannot write cooking progress", async () => {

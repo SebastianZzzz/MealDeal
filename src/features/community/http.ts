@@ -1,6 +1,6 @@
 import type { SurplusRepository } from "../surplus/repository";
 import { validDraft } from "../surplus/inventory";
-import { isDatabaseId } from "./database";
+import { isListingId } from "./database";
 
 export interface ApiDependencies {
   identity: () => Promise<{ sub: string } | null>;
@@ -46,13 +46,13 @@ export function createSurplusHandlers(deps: ApiDependencies) {
           pickupStart: draft.pickupStart, pickupEnd: draft.pickupEnd, allergens: draft.allergens,
           description: draft.description,
         };
-        return json({ listing: await repository.post(clean, deps.id()) }, 201);
+        return json({ listing: await repository.post(clean, deps.id(), user.sub) }, 201);
       } catch { return json({ error: "The listing could not be saved. Please try again." }, 503); }
     },
     async reserve(id: string) {
       try {
         if (!await deps.identity()) return json({ error: "Please sign in before reserving." }, 401);
-        if (!isDatabaseId(id)) return json({ error: "Invalid listing ID." }, 400);
+        if (!isListingId(id)) return json({ error: "Invalid listing ID." }, 400);
         const repository = await deps.surplus();
         if (!repository) return unavailable();
         const listing = await repository.reserve(id);

@@ -6,7 +6,7 @@
 | --- | --- |
 | `GET /api/resources?q=&type=` | Curated resources, official sources, verification dates and travel notice. Available now without a database or sign-in. |
 | `GET /api/surplus` | Shared database listings through A's pool. Returns 503 if configuration/storage is unavailable. |
-| `POST /api/surplus` | Auth0 sign-in, input validation and a server-generated UUID. All posts remain sample data; no merchant ownership column is required. |
+| `POST /api/surplus` | Authenticated identity, input validation and a server-generated ID. All posts remain sample data; `posted_by` comes from the server identity. |
 | `POST /api/surplus/[id]/reserve` | Auth0 sign-in and one conditional SQL decrement; 409 for sold-out/expired/missing rows. |
 | `GET /api/cooking/[id]` | Read the authenticated owner's saved plan. |
 | `PATCH /api/cooking/[id]` | Accept only `{ "progress": { "recipe-id": 2 } }`; derive completion server-side and preserve shopping data. |
@@ -29,15 +29,20 @@ interface Database {
 `getDDatabase()` reuses A's exported `db` pool from `src/lib/db.ts` and checks
 `DATABASE_URL` before loading it. It creates no separate pool. Missing
 configuration returns null; connection/query failures become sanitized 503
-responses. Secrets remain in the server environment. Signed-out writes return
-401, and shared writes never silently fall back to browser storage.
-The local browser demos continue independently.
+responses. Secrets remain in the server environment. D uses A's `getIdentity()`:
+Auth0 in production, plus A's explicitly enabled development-only demo identity.
+Production signed-out writes return 401. Shared writes never silently fall back
+to browser storage. Local browser demos continue independently.
 
 ## Schema and ownership
 
-The canonical schema is A's `db/migrations/20261107201500_shared_app.sql`.
+The canonical schema is A's `db/migrations/20261107201500_shared_app.sql` plus
+`20261107203800_align_surplus_with_d.sql`. The latter upgrades installations of
+the earlier UUID surplus draft. A's current version matches the desktop
+`MealDeal-feature-profile-followup` and remote commit `02366c2`.
 `sql/d-surplus.sql` is a matching reference, not an additional migration.
-It must not recreate the former text-ID/posted_by schema. Reservations
+Surplus IDs are text, `posted_by` is required, and this table has no `updated_at`.
+Cooking plan IDs and user foreign keys remain UUIDs. Reservations
 use one `UPDATE ... SET qty_left = qty_left - 1 WHERE id = $1 AND qty_left > 0
 AND pickup_end > clock_timestamp() RETURNING *`. Zero returned rows means no
 reservation was made. The database clock checks pickup expiry. The stock check
@@ -54,9 +59,12 @@ The previous chosen/progress/status are concurrency conditions; conflicts are
 409. A missing or unowned plan is 404. Invalid/local-only IDs return 400 before
 reaching UUID columns.
 
-The surplus table has no `posted_by` column. Authentication still guards
-posting/reservation, but D stores no merchant account or reservation roster.
-The insert explicitly sets `is_sample = true`, regardless of the table default.
+The surplus insert stores the verified server identity in `posted_by`, ignoring
+any owner supplied by the client. It sets `is_sample = true`. The reserve route
+accepts bounded nonempty text IDs and parameterizes every query, preserving
+existing sample IDs as well as generated UUID strings. D does not write an
+`updated_at` column on this table. No merchant account or reservation roster
+is introduced.
 
 ## UI connections
 
@@ -91,8 +99,9 @@ execute against PostgreSQL. The earlier browser-local concurrency test is not a
 database concurrency test. After A connects Tiger Data, run the two-client final
 portion test in `D-ACCEPTANCE.md` before claiming live shared inventory works.
 
-An isolated PGlite check executed A's table definitions and D's SQL for UUID
-ownership, progress conflicts, sample insertion, stock and expiry. This was not
+An isolated PGlite check executed A's table definitions and surplus upgrade,
+including upgrades from the earlier UUID draft, plus D's SQL for cooking UUID
+ownership, progress conflicts, text-ID sample insertion, stock and expiry. This was not
 a live Tiger Data or multi-connection concurrency test, and it used no shared
 credentials/data. This follow-up syncs main and A's completed database foundation;
 D does not change the shared types or take over C's plan persistence.
