@@ -123,7 +123,6 @@ h2, .planning-page h2 { font-family: var(--font-display); font-size: 23px; font-
 .chip:hover { border-color: var(--green); }
 .chip:active { transform: scale(.96); }
 .chip.active, .chip[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
-.chip.active::before, .chip[aria-pressed="true"]::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; }
 .chip-remove { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: -6px; border: 0; border-radius: 999px; background: rgb(0 0 0 / 8%); color: inherit; cursor: pointer; }
 
 /* Slider with round minus / plus */
@@ -145,7 +144,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .onboarding-header > span { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
 .onboarding-progress { height: 6px; overflow: hidden; background: var(--canvas-deep); border-radius: 99px; margin: 10px 0 18px; }
 .onboarding-progress > div { height: 100%; background: var(--green); border-radius: inherit; transition: width .3s ease; }
-.onboarding-page footer { position: sticky; bottom: 12px; display: flex; gap: 10px; margin: 26px -8px 0; padding: 8px; border-radius: 999px; background: rgb(244 241 234 / 94%); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 
 /* Home */
 .home-title { font-family: var(--font-display); font-size: 36px !important; font-weight: 600; line-height: 1.1; color: var(--green-deep); margin: 6px 0 20px !important; }
@@ -206,7 +204,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .chip-custom { padding: 0 6px 0 0; gap: 2px; cursor: default; }
 .chip-custom[data-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
 .chip-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 41px; padding: 0 4px 0 16px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.chip-toggle[aria-pressed="true"]::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; }
 .chip-custom .chip-remove { width: 26px; height: 26px; margin: 0; background: rgb(0 0 0 / 7%); }
 .chip-custom[data-pressed="true"] .chip-remove { background: rgb(255 255 255 / 22%); }
 
@@ -225,3 +222,11 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .place-success { color: var(--green); }
 .place-success strong { font-weight: 800; color: var(--green-deep); }
 .place-error { color: var(--danger); font-weight: 700; }
+
+/* Bottom action bar: main actions of multi-step screens, fixed to the bottom of the screen at full width
+   (never floating mid-page). Pages that use it reserve room so the last field stays visible. */
+.action-bar { position: fixed; z-index: 15; left: 50%; bottom: 0; transform: translateX(-50%); width: min(100%, 440px); display: flex; gap: 10px; align-items: center; padding: 12px 20px max(12px, env(safe-area-inset-bottom)); background: var(--canvas); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgb(29 43 38 / 6%); }
+.action-bar > .btn { min-height: 50px; }
+.action-bar > .btn.primary { flex: 1; }
+.action-bar-hint { flex: 1; font-size: 14px; color: var(--muted); }
+.has-action-bar { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }

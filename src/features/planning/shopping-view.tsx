@@ -73,7 +73,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
     }
   }
 
-  return <main className="page planning-page">
+  return <main className="page planning-page has-action-bar">
     <ScreenHeader backHref="/cook/options" />
     <p className="planning-eyebrow">COOK AT HOME / SHOPPING</p><h1>Shopping list</h1>
     <p className="muted">{plan.chosen.title}</p>
@@ -103,7 +103,11 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
     })}
     {error && <p role="alert" className="planning-error">{error}</p>}
     {syncWarning && <div className="planning-notice" role="status"><p>{syncWarning}</p><Link href="/cook/resume">Review saved account plans</Link><button type="button" className="btn secondary" onClick={() => sync(plan)}>Retry account save</button></div>}
-    {bought === total && <button type="button" className="btn primary planning-full" onClick={finish}>Start cooking →</button>}
+    <div className="action-bar">
+      {bought === total
+        ? <button type="button" className="btn primary" onClick={finish}>Start cooking</button>
+        : <><span className="action-bar-hint" role="status">{bought} of {plural(total, "item")} checked</span><button type="button" className="btn primary" disabled>Start cooking</button></>}
+    </div>
     <p className="planning-small muted">{bought === total ? "Your ingredients are ready. Your plan is saved on this device." : "Check off each item after buying it to finish shopping."}</p>
   </main>;
 }

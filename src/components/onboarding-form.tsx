@@ -291,7 +291,7 @@ export function OnboardingForm() {
   }
 
   const headings = ["Units", "Food preferences", "Your equipment", "Your pantry", "Shopping range"];
-  return <main className="page onboarding-page">
+  return <main className="page onboarding-page has-action-bar">
     <header className="onboarding-header"><span className="muted">STEP {step + 1} OF 5</span></header>
     <div className="onboarding-progress"><div style={{ width: `${(step + 1) * 20}%` }} /></div>
     <p className="planning-eyebrow">MAKE MEALDEAL YOURS</p>
@@ -349,7 +349,7 @@ export function OnboardingForm() {
       <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput kind="goal" label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
     </section>}
     {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
-    <footer style={{ display: "flex", gap: 10, marginTop: 26 }}>
+    <footer className="action-bar">
       {step > 0 && !editingOne && <button type="button" className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>← Previous</button>}
       {editingOne
         ? <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => void finish()}>{saving ? "Saving…" : "Save changes"}</button>
