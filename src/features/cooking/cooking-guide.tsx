@@ -7,6 +7,7 @@ import { createSession, formatTime, remainingMs, restoreSession, timerKey, updat
 import { canCook, saveCurrentProgress } from "./plan-storage";
 import { syncCookingPlan } from "./cloud-client";
 import styles from "./cooking.module.css";
+import { plural } from "@/lib/plural";
 
 type ViewState = { session: CookingSession; ready: boolean; warning: string; units: UnitPrefs; now: number };
 type ViewAction = CookingAction
@@ -137,11 +138,11 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
       <p className={styles.eyebrow}>GOOD FOOD, ONE STEP AT A TIME</p>
       <h1>{allDone ? "Made by you." : <>Let’s make<br />something good.</>}</h1>
       <p className={styles.subtitle}>{allDone ? "Your meal is ready. Take a seat and enjoy what you made." : "A little guidance. A meal to feel good about. Open a recipe when you’re ready to begin."}</p>
-      <div className={styles.mealMeta}><span><Icon name="pot" size={17} /> {recipes.length} recipes</span><span><Icon name="clock" size={17} /> {Math.max(0, ...recipes.map((recipe) => recipe.totalMinutes))} min estimated</span></div>
+      <div className={styles.mealMeta}><span><Icon name="pot" size={17} /> {plural(recipes.length, "recipe")}</span><span><Icon name="clock" size={17} /> {Math.max(0, ...recipes.map((recipe) => recipe.totalMinutes))} min estimated</span></div>
     </section>
 
     <section className={styles.progressCard} aria-label="Cooking progress">
-      <div><span className={styles.eyebrow}>{allDone ? "DINNER, DONE" : "YOUR PROGRESS"}</span><strong>{completedSteps} <span>/ {totalSteps} steps</span></strong></div>
+      <div><span className={styles.eyebrow}>{allDone ? "DINNER, DONE" : "YOUR PROGRESS"}</span><strong>{completedSteps} <span>/ {plural(totalSteps, "step")}</span></strong></div>
       <div className={styles.progressTrack} role="progressbar" aria-label="Completed cooking steps" aria-valuemin={0} aria-valuemax={totalSteps || 1} aria-valuenow={completedSteps}><span style={{ width: `${totalSteps ? completedSteps / totalSteps * 100 : 0}%` }} /></div>
       <p role="status">{view.warning || "Progress saved on this browser. Come back right where you left off."}</p>
     </section>
@@ -165,12 +166,12 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
         return <article key={recipe.id} id={`recipe-${recipe.id}`} className={`${styles.recipe} ${done ? styles.recipeDone : ""}`}>
           <button className={styles.recipeHeader} aria-expanded={expanded} aria-controls={`body-${recipe.id}`} onClick={() => setOpenRecipes({ ...openRecipes, [recipe.id]: !expanded })}>
             <span className={`${styles.recipeArt} ${recipeIndex % 2 ? styles.riceArt : ""}`} aria-hidden="true">{recipeIndex % 2 ? "🍚" : "🍅"}</span>
-            <span className={styles.recipeHeading}><span className={styles.recipeNumber}>RECIPE {String(recipeIndex + 1).padStart(2, "0")}{done && " · COMPLETE"}</span><h3>{recipe.title}</h3><span className={styles.recipeMeta}>{recipe.totalMinutes} min <span>·</span> {recipe.servings} portions <span>·</span> {Math.min(recipe.steps.length, currentStep - 1)}/{recipe.steps.length} steps</span></span>
+            <span className={styles.recipeHeading}><span className={styles.recipeNumber}>RECIPE {String(recipeIndex + 1).padStart(2, "0")}{done && " · COMPLETE"}</span><h3>{recipe.title}</h3><span className={styles.recipeMeta}>{recipe.totalMinutes} min <span>·</span> {plural(recipe.servings, "portion")} <span>·</span> {Math.min(recipe.steps.length, currentStep - 1)}/{plural(recipe.steps.length, "step")}</span></span>
             <span className={`${styles.expandIcon} ${expanded ? styles.expanded : ""}`}><Icon name={done ? "check" : "chevron"} /></span>
           </button>
 
           <div id={`body-${recipe.id}`} hidden={!expanded} className={styles.recipeBody}>
-            <section className={styles.ingredients} aria-label={`Ingredients for ${recipe.title}`}><div className={styles.ingredientsHeading}><h4>Everything you’ll need</h4><span>For all {recipe.servings} portions</span></div><ul>{recipe.ingredients.map((ingredient, index) => <li key={`${ingredient.name}-${index}`}><span>{ingredient.name}{ingredient.pantryItemId && <small>FROM YOUR PANTRY</small>}</span><strong>{quantity(ingredient.qtyG, units.weight)}</strong></li>)}</ul></section>
+            <section className={styles.ingredients} aria-label={`Ingredients for ${recipe.title}`}><div className={styles.ingredientsHeading}><h4>Everything you’ll need</h4><span>{recipe.servings === 1 ? "For 1 portion" : `For all ${recipe.servings} portions`}</span></div><ul>{recipe.ingredients.map((ingredient, index) => <li key={`${ingredient.name}-${index}`}><span>{ingredient.name}{ingredient.pantryItemId && <small>FROM YOUR PANTRY</small>}</span><strong>{quantity(ingredient.qtyG, units.weight)}</strong></li>)}</ul></section>
 
             <div className={styles.steps}>
               {recipe.steps.map((step) => {
@@ -215,7 +216,7 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
     </div>
 
     {recipes.length === 0 && <section className={styles.empty}><h2>No recipes here yet.</h2><p>Choose a meal plan before entering cooking mode.</p><Link href="/cook">Back to Cook at Home</Link></section>}
-    {allDone && <section className={styles.celebration} role="status"><span className={styles.finishMark}><Icon name="check" size={28} /></span><h2>Good food. Your own two hands.</h2><p>All {recipes.length} recipes are complete. Your progress is saved here.</p><Link href="/" className={styles.homeButton}>Back to MealDeal <span>→</span></Link></section>}
+    {allDone && <section className={styles.celebration} role="status"><span className={styles.finishMark}><Icon name="check" size={28} /></span><h2>Good food. Your own two hands.</h2><p>{recipes.length === 1 ? "Your recipe is complete." : `All ${recipes.length} recipes are complete.`} Your progress is saved here.</p><Link href="/" className={styles.homeButton}>Back to MealDeal <span>→</span></Link></section>}
 
     {!isDemo && <section className={styles.cloudSync} aria-label="Account progress"><h2>Keep your place.</h2><p>Progress saves on this browser automatically. Account sync is available when your plan has been connected to shared storage.</p><div><button disabled={cloudBusy} onClick={() => void syncAccount(false)}>Save to account</button><button disabled={cloudBusy} onClick={() => void syncAccount(true)}>Restore account progress</button></div>{cloudMessage && <p role="status">{cloudMessage}</p>}</section>}
     <footer className={styles.footer}><Icon name="leaf" size={17} /><p>A little less stress. A little more homemade.</p><span>Timers are reminders. Check your food as you cook.</span></footer>

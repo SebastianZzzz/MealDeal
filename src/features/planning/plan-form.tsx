@@ -10,6 +10,7 @@ import type { MeatVeg, PlanRequest } from "@/types";
 import type { PlanningResponse } from "@/contracts/planning-api";
 import { adaptPantry, adaptProfile } from "./adapter";
 import { useSaved } from "./use-saved";
+import { plural } from "@/lib/plural";
 
 const CUISINES = ["Chinese", "Korean", "Japanese", "Indian", "Italian", "Mexican", "Thai", "Vietnamese"];
 const PREFS_KEY = "mealdeal.planPrefs";
@@ -117,7 +118,7 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
             <label className="field">Meals each day<select value={meals} onChange={(event) => setMeals(event.target.value)}><option value="1">Dinner</option><option value="2">Lunch + dinner</option><option value="3">Breakfast + lunch + dinner</option></select></label>
           </div>}
           <label className="planning-toggle"><input type="checkbox" checked={batchCook} onChange={(event) => setBatchCook(event.target.checked)} /><span><strong>Cook once, eat a few times</strong><small className="muted">Make extra portions and reuse ingredients.</small></span></label>
-          <p className="planning-small muted">{count} meal{count === 1 ? "" : "s"} · {Number(servings) * count} total portions</p>
+          <p className="planning-small muted">{plural(count, "meal")} · {plural(Number(servings) * count, "total portion")}</p>
         </section>
         <section className="card planning-section">
           <h2>Make it yours</h2>
