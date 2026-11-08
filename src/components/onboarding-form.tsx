@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { demoStore } from "@/lib/demo-store";
+import { readApiError } from "@/lib/api-error";
+import { dietaryFieldErrors } from "@/lib/profile-validation";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 
 const options = {
@@ -12,8 +14,24 @@ const options = {
   equipment: ["Stovetop", "Pot", "Pan", "Oven", "Microwave", "Rice cooker", "Air fryer", "Blender"],
 };
 
-function Chips({ values, selected, onChange }: { values: string[]; selected: string[]; onChange: (v: string[]) => void }) {
-  return <div className="chips">{values.map((value) => <button type="button" key={value} className={`chip ${selected.includes(value) ? "active" : ""}`} onClick={() => onChange(selected.includes(value) ? selected.filter((x) => x !== value) : [...selected, value])}>{value}</button>)}</div>;
+const fieldErrorStyle = { color: "#a32626", fontSize: 13, marginTop: 6 } as const;
+
+function stepForFields(fields: Record<string, string>, fallback: number) {
+  const names = Object.keys(fields);
+  if (names.some((name) => name.startsWith("units."))) return 0;
+  if (names.some((name) => ["dietary", "allergies", "cuisines", "meatVegRatio", "defaultServings"].includes(name))) return 1;
+  if (names.some((name) => name === "equipment")) return 2;
+  if (names.some((name) => /^\d+\./.test(name) || name === "_")) return 3;
+  if (names.some((name) => ["maxDistanceKm", "nutritionGoal"].includes(name))) return 4;
+  return fallback;
+}
+
+function Chips({ values, selected, onChange }: { values: string[]; selected: string[]; onChange: (value: string[]) => void }) {
+  return <div className="chips">{values.map((value) => <button type="button" key={value} className={`chip ${selected.includes(value) ? "active" : ""}`} onClick={() => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])}>{value}</button>)}</div>;
+}
+
+function englishProfile(profile: UserProfile): UserProfile {
+  return { ...profile, lang: "en", units: { ...profile.units, lang: "en" } };
 }
 
 export function OnboardingForm() {
@@ -24,69 +42,112 @@ export function OnboardingForm() {
   const [newItem, setNewItem] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [serverFields, setServerFields] = useState<Record<string, string>>({});
+  const preferenceFields = dietaryFieldErrors(profile);
+  const fields = { ...serverFields, ...preferenceFields };
 
   useEffect(() => {
-    Promise.all([fetch("/api/me"), fetch("/api/pantry")]).then(async ([me, food]) => {
-      const meData = await me.json(); const foodData = await food.json();
-      setProfile(meData.profile ?? demoStore.getProfile() ?? defaultProfile);
-      setPantry(foodData.items?.length ? foodData.items : demoStore.getPantry());
-    }).catch(() => { setProfile(demoStore.getProfile() ?? defaultProfile); setPantry(demoStore.getPantry()); });
+    async function load() {
+      try {
+        const [meResponse, pantryResponse] = await Promise.all([fetch("/api/me"), fetch("/api/pantry")]);
+        if (!meResponse.ok) throw new Error((await readApiError(meResponse)).error);
+        if (!pantryResponse.ok) throw new Error((await readApiError(pantryResponse)).error);
+        const meData = await meResponse.json();
+        const pantryData = await pantryResponse.json();
+        const savedProfile = meData.profile ?? demoStore.getProfile() ?? defaultProfile;
+        setProfile(englishProfile(savedProfile));
+        setPantry(pantryData.items?.length ? pantryData.items : demoStore.getPantry());
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Your saved setup could not be loaded.");
+        setProfile(englishProfile(demoStore.getProfile() ?? defaultProfile));
+        setPantry(demoStore.getPantry());
+      }
+    }
+    void load();
   }, []);
 
-  async function chooseLanguage(lang: "en" | "zh") {
-    const response = await fetch("/api/units/suggest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lang }) });
-    const units = await response.json(); setProfile((p) => ({ ...p, lang, units }));
+  function addPantry() {
+    const name = newItem.trim();
+    if (!name) return;
+    setPantry((items) => [...items, { name, qtyG: 0 }]);
+    setNewItem("");
   }
 
-  function addPantry() {
-    const name = newItem.trim(); if (!name) return;
-    setPantry((items) => [...items, { name, qtyG: 0 }]); setNewItem("");
+  function continueOnboarding() {
+    setError("");
+    const nextFields: Record<string, string> = {};
+    if (step === 1) {
+      Object.assign(nextFields, preferenceFields);
+      if (!Number.isInteger(profile.defaultServings) || profile.defaultServings < 1 || profile.defaultServings > 20) {
+        nextFields.defaultServings = "Enter a whole number from 1 to 20.";
+      }
+    }
+    setServerFields(nextFields);
+    if (Object.keys(nextFields).length) return;
+    setStep((current) => current + 1);
   }
 
   async function finish() {
-    setSaving(true); setError("");
-    const complete = { ...profile, onboardingComplete: true };
+    setSaving(true);
+    setError("");
+    setServerFields({});
+    const complete = { ...englishProfile(profile), onboardingComplete: true };
     try {
       const profileResponse = await fetch("/api/me", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(complete) });
-      if (!profileResponse.ok) throw new Error("Could not save your profile");
+      if (!profileResponse.ok) {
+        const failure = await readApiError(profileResponse);
+        setServerFields(failure.fields ?? {});
+        setStep(stepForFields(failure.fields ?? {}, 4));
+        throw new Error(failure.error);
+      }
       const pantryResponse = await fetch("/api/pantry", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(pantry) });
-      if (!pantryResponse.ok) throw new Error("Could not save pantry items");
-      demoStore.setProfile(complete); demoStore.setPantry(pantry); router.push("/cook");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Something went wrong"); setSaving(false); }
+      if (!pantryResponse.ok) {
+        const failure = await readApiError(pantryResponse);
+        setServerFields(failure.fields ?? {});
+        setStep(stepForFields(failure.fields ?? {}, 3));
+        throw new Error(failure.error);
+      }
+      demoStore.setProfile(complete);
+      demoStore.setPantry(pantry);
+      router.push("/cook");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Something went wrong. Please try again.");
+      setSaving(false);
+    }
   }
 
-  const headings = ["Choose your language", "Food preferences", "Your kitchen", "What's already at home?", "Shopping range"];
+  const headings = ["Measurement units", "Food preferences", "Your kitchen", "What's already at home?", "Shopping range"];
   return <main className="page">
     <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><b>MealDeal</b><span className="muted">{step + 1} / 5</span></header>
     <div style={{ height: 7, background: "#e2e6df", borderRadius: 99, margin: "20px 0 34px" }}><div style={{ width: `${(step + 1) * 20}%`, height: "100%", background: "var(--green)", borderRadius: 99 }} /></div>
     <h1 style={{ fontSize: 34, letterSpacing: "-1.3px" }}>{headings[step]}</h1>
     {step === 0 && <section className="card">
-      <p className="muted">This also sets our suggested cooking measurements. You can change them.</p>
-      <div className="chips"><button className={`chip ${profile.lang === "en" ? "active" : ""}`} onClick={() => chooseLanguage("en")}>English</button><button className={`chip ${profile.lang === "zh" ? "active" : ""}`} onClick={() => chooseLanguage("zh")}>Chinese</button></div>
-      <label className="field">Weight unit<select value={profile.units.weight} onChange={(e) => setProfile({ ...profile, units: { ...profile.units, weight: e.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams</option><option value="kg">kilograms</option><option value="lb">pounds</option><option value="jin">jin (500 g)</option></select></label>
-      <label className="field">Volume unit<select value={profile.units.volume} onChange={(e) => setProfile({ ...profile, units: { ...profile.units, volume: e.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres</option><option value="l">litres</option><option value="cup">cups</option></select></label>
+      <p className="muted">Choose how recipe quantities are displayed. MealDeal currently uses English.</p>
+      <label className="field">Weight unit<select value={profile.units.weight} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, weight: event.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams (g)</option><option value="kg">kilograms (kg)</option><option value="lb">pounds (lb)</option><option value="oz">ounces (oz)</option><option value="jin">jin (500 g)</option></select></label>
+      <label className="field">Volume unit<select value={profile.units.volume} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, volume: event.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres (ml)</option><option value="l">litres (l)</option><option value="cup">cups</option><option value="fl_oz">fluid ounces (fl oz)</option></select></label>
     </section>}
     {step === 1 && <section className="card">
-      <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => setProfile({ ...profile, dietary })} /></label>
+      <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => { setProfile({ ...profile, dietary }); setServerFields({}); }} />{fields.dietary && <span style={fieldErrorStyle}>{fields.dietary}</span>}</label>
       <label className="field">Allergies<Chips values={options.allergies} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /></label>
       <label className="field">Cuisines you enjoy<Chips values={options.cuisines} selected={profile.cuisines} onChange={(cuisines) => setProfile({ ...profile, cuisines })} /></label>
-      <label className="field">Meal balance<select value={profile.meatVegRatio} onChange={(e) => setProfile({ ...profile, meatVegRatio: e.target.value as UserProfile["meatVegRatio"] })}><option value="more_meat">More meat</option><option value="balanced">Balanced</option><option value="more_veg">More vegetables</option><option value="vegetarian">Vegetarian</option></select></label>
-      <label className="field">People I usually cook for<input type="number" min="1" max="20" value={profile.defaultServings} onChange={(e) => setProfile({ ...profile, defaultServings: Number(e.target.value) })} /></label>
+      <label className="field">Meal balance<select aria-invalid={Boolean(fields.meatVegRatio)} value={profile.meatVegRatio} onChange={(event) => { setProfile({ ...profile, meatVegRatio: event.target.value as UserProfile["meatVegRatio"] }); setServerFields({}); }}><option value="more_meat">More meat</option><option value="balanced">Balanced</option><option value="more_veg">More vegetables</option><option value="vegetarian">Vegetarian</option></select>{fields.meatVegRatio && <span style={fieldErrorStyle}>{fields.meatVegRatio}</span>}</label>
+      <label className="field">People I usually cook for<input type="number" min="1" max="20" aria-invalid={Boolean(fields.defaultServings)} value={Number.isFinite(profile.defaultServings) ? profile.defaultServings : ""} onChange={(event) => { setProfile({ ...profile, defaultServings: event.target.value === "" ? Number.NaN : Number(event.target.value) }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}</label>
     </section>}
     {step === 2 && <section className="card"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /></section>}
     {step === 3 && <section className="card">
       <p className="muted">Add staples or leftovers. Unknown quantities are okay.</p>
-      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, border: "1px solid #cbd7ce", borderRadius: 14, padding: 13 }} value={newItem} onChange={(e) => setNewItem(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
-      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => <div key={`${item.name}-${index}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #edf0eb" }}><span>{item.name}</span><button className="chip" onClick={() => setPantry(pantry.filter((_, i) => i !== index))}>Remove</button></div>)}</div>
+      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, border: "1px solid #cbd7ce", borderRadius: 14, padding: 13 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
+      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => <div key={`${item.name}-${index}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #edf0eb" }}><span>{item.name}</span><button className="chip" onClick={() => setPantry(pantry.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}</div>
+      {fields._ && <p style={fieldErrorStyle}>{fields._}</p>}
     </section>}
     {step === 4 && <section className="card">
-      <label className="field">Maximum shopping distance: {profile.maxDistanceKm} km<input type="range" min="0.5" max="15" step="0.5" value={profile.maxDistanceKm} onChange={(e) => setProfile({ ...profile, maxDistanceKm: Number(e.target.value) })} /></label>
-      <label className="field">Optional nutrition goal<textarea rows={3} placeholder="e.g. prioritize protein" value={profile.nutritionGoal} onChange={(e) => setProfile({ ...profile, nutritionGoal: e.target.value })} /></label>
+      <label className="field">Maximum shopping distance: {profile.maxDistanceKm} km<input type="range" min="0.5" max="15" step="0.5" value={profile.maxDistanceKm} onChange={(event) => setProfile({ ...profile, maxDistanceKm: Number(event.target.value) })} /></label>
+      <label className="field">Optional nutrition goal<textarea rows={3} placeholder="e.g. prioritize protein" value={profile.nutritionGoal} onChange={(event) => setProfile({ ...profile, nutritionGoal: event.target.value })} /></label>
     </section>}
-    {error && <p style={{ color: "#a32626" }}>{error}</p>}
+    {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
     <footer style={{ display: "flex", gap: 10, marginTop: 26 }}>
-      {step > 0 && <button className="btn secondary" onClick={() => setStep(step - 1)}>Back</button>}
-      <button className="btn" style={{ flex: 1 }} disabled={saving} onClick={() => step < 4 ? setStep(step + 1) : finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>
+      {step > 0 && <button className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>Back</button>}
+      <button className="btn" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>
     </footer>
   </main>;
 }

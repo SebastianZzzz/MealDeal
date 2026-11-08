@@ -1,6 +1,6 @@
 export type Language = "en" | "zh";
-export type WeightUnit = "g" | "kg" | "lb" | "jin";
-export type VolumeUnit = "ml" | "l" | "cup";
+export type WeightUnit = "g" | "kg" | "lb" | "oz" | "jin";
+export type VolumeUnit = "ml" | "l" | "cup" | "fl_oz";
 
 export interface UnitPreferences {
   lang: Language;
