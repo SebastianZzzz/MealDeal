@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/types";
 import type { PriceTagResponse } from "@/app/api/extract/price-tag/route";
@@ -198,6 +199,15 @@ export function ReportForm() {
       <p className="planning-eyebrow">SHARE A PRICE</p>
       <h1>Snap a price tag.</h1>
       <p className="muted">We read the tag and work out the price per 100 g. Your photo is not saved.</p>
+
+      <Image
+        className="price-tag-photo-guide"
+        src="/images/price-tag-photo-guide.png"
+        alt="Photo guide: keep the whole price tag clear and straight, and avoid blurry or cropped tags."
+        width={814}
+        height={452}
+        priority
+      />
 
       <label className="btn primary" style={{ width: "100%", marginTop: 16, opacity: reading ? 0.6 : 1 }}>
         {reading ? "Reading the tag…" : items.length ? "Take another photo" : "Take a photo"}
