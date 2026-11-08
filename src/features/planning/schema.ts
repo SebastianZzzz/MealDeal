@@ -73,7 +73,7 @@ export const draftRecipeSchema = z.object({
 export const draftOptionSchema = z.object({
   title: z.string().min(1).max(160), recipes: z.array(draftRecipeSchema).min(1).max(42),
 });
-export const draftResponseSchema = z.object({ options: z.array(z.unknown()).min(1).max(3) });
+export const draftResponseSchema = z.object({ options: z.array(z.unknown()).min(1).max(3), noteIgnored: z.boolean().optional() });
 export type DraftRecipe = z.infer<typeof draftRecipeSchema>;
 export type DraftOption = z.infer<typeof draftOptionSchema>;
 export type PlanningInput = z.infer<typeof planInputSchema>;

@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { demoStore } from "@/lib/demo-store";
 import { readApiError } from "@/lib/api-error";
-import { dietaryFieldErrors } from "@/lib/profile-validation";
+import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile-validation";
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 
 const options = {
   dietary: ["Vegetarian", "Vegan", "Halal", "Kosher"],
   allergies: ["Peanuts", "Tree nuts", "Dairy", "Eggs", "Gluten", "Shellfish"],
-  cuisines: ["Chinese", "Korean", "Indian", "Italian", "Mexican", "Japanese"],
   equipment: ["Stovetop", "Pot", "Pan", "Oven", "Microwave", "Rice cooker", "Air fryer", "Blender"],
 };
 
@@ -32,7 +31,8 @@ function Chips({ values, selected, onChange }: { values: string[]; selected: str
 }
 
 function englishProfile(profile: UserProfile): UserProfile {
-  return { ...profile, lang: "en", units: { ...profile.units, lang: "en" } };
+  // Older saved profiles may pair a vegetarian diet with another meal balance; line them up.
+  return normalizeDietary({ ...profile, lang: "en", units: { ...profile.units, lang: "en" } });
 }
 
 export function OnboardingForm() {
@@ -132,10 +132,9 @@ export function OnboardingForm() {
       <label className="field">Volume unit<select value={profile.units.volume} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, volume: event.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres (ml)</option><option value="l">litres (l)</option><option value="cup">cups</option><option value="fl_oz">fluid ounces (fl oz)</option></select></label>
     </section>}
     {step === 1 && <section className="card">
-      <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => { setProfile({ ...profile, dietary }); setServerFields({}); }} />{fields.dietary && <span style={fieldErrorStyle}>{fields.dietary}</span>}</label>
+      <p className="muted">Rules every plan must follow. You pick cuisines and the meat/veg balance each time you plan.</p>
+      <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}</label>
       <label className="field">Allergies<Chips values={options.allergies} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /></label>
-      <label className="field">Cuisines you enjoy<Chips values={options.cuisines} selected={profile.cuisines} onChange={(cuisines) => setProfile({ ...profile, cuisines })} /></label>
-      <label className="field">Meal balance<select aria-invalid={Boolean(fields.meatVegRatio)} value={profile.meatVegRatio} onChange={(event) => { setProfile({ ...profile, meatVegRatio: event.target.value as UserProfile["meatVegRatio"] }); setServerFields({}); }}><option value="more_meat">More meat</option><option value="balanced">Balanced</option><option value="more_veg">More vegetables</option><option value="vegetarian">Vegetarian</option></select>{fields.meatVegRatio && <span style={fieldErrorStyle}>{fields.meatVegRatio}</span>}</label>
       <label className="field">People I usually cook for<input type="number" min="1" max="20" aria-invalid={Boolean(fields.defaultServings)} value={Number.isFinite(profile.defaultServings) ? profile.defaultServings : ""} onChange={(event) => { setProfile({ ...profile, defaultServings: event.target.value === "" ? Number.NaN : Number(event.target.value) }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}</label>
     </section>}
     {step === 2 && <section className="card"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /></section>}

@@ -11,6 +11,26 @@ import type { PlanningResponse } from "@/contracts/planning-api";
 import { adaptPantry, adaptProfile } from "./adapter";
 import { useSaved } from "./use-saved";
 
+const CUISINES = ["Chinese", "Korean", "Japanese", "Indian", "Italian", "Mexican", "Thai", "Vietnamese"];
+const PREFS_KEY = "mealdeal.planPrefs";
+
+// This plan's taste choices are remembered on the device and offered again next time.
+function readPlanPrefs(): { cuisines?: string[]; meatVeg?: MeatVeg } {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function savePlanPrefs(prefs: { cuisines: string[]; meatVeg: MeatVeg }) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // Remembering choices is a convenience only.
+  }
+}
+
 function readKitchen() {
   try {
     const profile = demoStore.getProfile();
@@ -40,8 +60,10 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
   const [days, setDays] = useState("3");
   const [meals, setMeals] = useState("1");
   const [batchCook, setBatchCook] = useState(false);
-  const [meatVeg, setMeatVeg] = useState<MeatVeg>(profile.meatVeg);
-  const [cuisines, setCuisines] = useState(profile.cuisines.join(", "));
+  const vegetarianDiet = profile.meatVeg === "vegetarian";
+  const [saved] = useState(readPlanPrefs);
+  const [meatVeg, setMeatVeg] = useState<MeatVeg>(vegetarianDiet ? "vegetarian" : saved.meatVeg && saved.meatVeg !== "vegetarian" ? saved.meatVeg : profile.meatVeg);
+  const [cuisines, setCuisines] = useState<string[]>(saved.cuisines ?? profile.cuisines);
   const [maxMinutes, setMaxMinutes] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,9 +76,10 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
     const request: PlanRequest = {
       budget: Number(budget), servings: Number(servings), duration: duration === "one_meal" ? "one_meal" : "days",
       ...(duration !== "one_meal" ? { days: duration === "week" ? 7 : Number(days), mealsPerDay: Number(meals) } : {}),
-      batchCook, cuisines: cuisines.split(",").map((item) => item.trim()).filter(Boolean), meatVeg,
+      batchCook, cuisines, meatVeg,
       ...(maxMinutes ? { maxCookMinutes: Number(maxMinutes) } : {}), ...(note.trim() ? { note: note.trim() } : {}),
     };
+    savePlanPrefs({ cuisines, meatVeg });
     try {
       const response = await fetch("/api/plan", {
         method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(60000),
@@ -98,8 +121,10 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
         </section>
         <section className="card planning-section">
           <h2>Make it yours</h2>
-          <label className="field">Meal balance<select value={meatVeg} onChange={(event) => setMeatVeg(event.target.value as MeatVeg)} disabled={profile.meatVeg === "vegetarian"}><option value="mostly_meat">More meat</option><option value="balanced">Balanced</option><option value="mostly_veg">More vegetables</option><option value="vegetarian">Vegetarian</option></select></label>
-          <label className="field">Cuisines<input value={cuisines} maxLength={500} onChange={(event) => setCuisines(event.target.value)} placeholder="e.g. Chinese, Italian" /><small className="muted">Separate with commas.</small></label>
+          {vegetarianDiet
+            ? <p className="field">Meal balance<span className="muted">Vegetarian, from your dietary needs.</span></p>
+            : <label className="field">Meal balance<select value={meatVeg} onChange={(event) => setMeatVeg(event.target.value as MeatVeg)}><option value="mostly_meat">More meat</option><option value="balanced">Balanced</option><option value="mostly_veg">More vegetables</option><option value="vegetarian">Vegetarian this time</option></select></label>}
+          <div className="field" role="group" aria-label="Cuisines">Cuisines<div className="chips">{CUISINES.map((cuisine) => <button type="button" key={cuisine} aria-pressed={cuisines.includes(cuisine)} className={`chip ${cuisines.includes(cuisine) ? "active" : ""}`} onClick={() => setCuisines(cuisines.includes(cuisine) ? cuisines.filter((item) => item !== cuisine) : [...cuisines, cuisine])}>{cuisine}</button>)}</div><small className="muted">{cuisines.length ? "We'll mix these in where the prices work." : "No preference: any cuisine."}</small></div>
           <label className="field">Maximum cooking time (optional)<input type="number" min="1" max="240" value={maxMinutes} onChange={(event) => setMaxMinutes(event.target.value)} placeholder="Minutes per recipe" /></label>
           <label className="field">Anything else?<textarea value={note} maxLength={1000} rows={3} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Something spicy, please" /></label>
           <p className="planning-small muted">Your saved allergies and dietary needs apply to every option.</p>

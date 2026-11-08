@@ -68,15 +68,20 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   const generationContext = { deadline: Date.now() + 50000, unavailableModels: new Set<string>() };
   let feedback = "";
   const maxAttempts = mode === "gemini" ? MAX_GENERATION_ATTEMPTS : 1;
+  let noteIgnored = false;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (mode === "gemini" && Date.now() >= generationContext.deadline) {
       break;
     }
     let drafts: unknown[];
     try {
-      drafts = mode === "gemini"
-        ? await generateWithGemini(input.request, profile, pantry, products, feedback, generationContext)
-        : createDemoOptions(input.request, profile, products, pantry);
+      if (mode === "gemini") {
+        const generated = await generateWithGemini(input.request, profile, pantry, products, feedback, generationContext);
+        drafts = generated.options;
+        noteIgnored ||= generated.noteIgnored;
+      } else {
+        drafts = createDemoOptions(input.request, profile, products, pantry);
+      }
     } catch (error) {
       if (error instanceof PlanningModelError) {
         if (options.length) {
@@ -124,6 +129,10 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   }
   if (options.length < 2) {
     warnings.push("Only one complete option was found within the budget, restrictions and generation limits. Try again for more choices.");
+  }
+  if (noteIgnored) {
+    // Fixed text: never echo the model's or the student's words back as a notice.
+    warnings.push("Part of your note wasn't about these meals, so we left it out.");
   }
   options.sort(comparePlanOptions);
   return { requestId, options: options.slice(0, 3), meta: { mode, isSample: catalog.isSample, stores: catalog.stores, products, missingNutrition, warnings } };
