@@ -43,29 +43,45 @@ export class ExtractionError extends Error {
   }
 }
 
+// Fastest accurate models first (tested on real flyer snippets, ~1 s each). Override with GEMINI_TAG_MODELS="a,b,c".
+const DEFAULT_TAG_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"];
+const RETRYABLE = new Set([404, 429, 500, 503]);
+
+function tagModels(): string[] {
+  const configured = process.env.GEMINI_TAG_MODELS?.split(",").map((m) => m.trim()).filter(Boolean);
+  const models = configured?.length ? configured : DEFAULT_TAG_MODELS;
+  return models.filter((m) => /^[a-zA-Z0-9.-]+$/.test(m));
+}
+
 export async function extractPriceTag(image: { data: Buffer; mimeType: string }): Promise<ExtractedItem[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new ExtractionError("Price-tag reading is not configured (missing GEMINI_API_KEY).", 503);
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  if (!/^[a-zA-Z0-9.-]+$/.test(model)) throw new ExtractionError("Invalid GEMINI_MODEL configuration.", 503);
+  const models = tagModels();
+  if (models.length === 0) throw new ExtractionError("Invalid GEMINI_TAG_MODELS configuration.", 503);
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    cache: "no-store",
-    signal: AbortSignal.timeout(25_000),
-    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: PROMPT }, { inline_data: { mime_type: image.mimeType, data: image.data.toString("base64") } }],
-        },
-      ],
-      generationConfig: { responseMimeType: "application/json", responseJsonSchema: geminiSchema, temperature: 0 },
-    }),
-  }).catch(() => {
-    throw new ExtractionError("Could not reach the price-tag reader. Try again or enter the price manually.", 502);
+  const request = JSON.stringify({
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: PROMPT }, { inline_data: { mime_type: image.mimeType, data: image.data.toString("base64") } }],
+      },
+    ],
+    generationConfig: { responseMimeType: "application/json", responseJsonSchema: geminiSchema, temperature: 0 },
   });
+
+  // Try each model in order; move on when one is out of quota, overloaded or unreachable.
+  let response: Response | undefined;
+  for (const model of models) {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+      body: request,
+    }).catch(() => undefined);
+    if (response && !RETRYABLE.has(response.status)) break;
+  }
+  if (!response) throw new ExtractionError("Could not reach the price-tag reader. Try again or enter the price manually.", 502);
   // Never forward provider bodies: they can echo request data.
   if (!response.ok) throw new ExtractionError(`Price-tag reader failed (${response.status}).`, 502);
 
