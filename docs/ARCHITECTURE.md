@@ -41,3 +41,16 @@ exception and remain private to `src/contracts/profile.ts`.
 
 All API inputs must be validated. Secrets stay server-only and must never use a
 `NEXT_PUBLIC_` prefix.
+
+## API errors
+
+Every non-2xx JSON response has the shape `ApiError` from `src/types.ts`:
+
+```json
+{ "error": "Please log in to save your profile.", "code": "UNAUTHORIZED", "fields": { "defaultServings": "Must be at least 1" } }
+```
+
+- Build responses with `apiError(code, message, fields?)` or `validationError(zodError)` from `src/lib/api-error.ts`. The code decides the status (`VALIDATION_FAILED` 400, `UNAUTHORIZED` 401, `NOT_FOUND` 404, `CONFLICT` 409, `UNPROCESSABLE` 422, `INTERNAL` 500, `UPSTREAM_FAILED` 502, `SERVICE_UNAVAILABLE`/`DATABASE_UNAVAILABLE` 503).
+- `error` is one sentence a user can act on. Never put SQL errors, provider bodies or stack traces in it; log those with `console.error` instead.
+- Don't map every failure to one status: constraint violations are 400/409, bugs are 500, an unreachable DB is 503.
+- In the browser, use `readApiError(response)` and show `error`, plus `fields` next to the matching inputs. Don't replace them with a generic message.
