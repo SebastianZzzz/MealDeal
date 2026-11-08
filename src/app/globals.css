@@ -101,13 +101,25 @@ h2, .planning-page h2 { font-family: var(--font-display); font-size: 23px; font-
 .planning-shopping { list-style: none; padding: 0; margin: 8px 0 0; }
 .planning-shopping li + li { border-top: 1px solid var(--line); }
 .planning-shopping-item { display: flex; gap: 12px; align-items: center; padding: 16px 0; cursor: pointer; }
-.planning-shopping-item input { width: 24px; height: 24px; accent-color: var(--green); flex: none; }
+.planning-shopping-item input { flex: none; }
 .planning-shopping-item > span { flex: 1; min-width: 0; }
 .planning-shopping-item small { display: block; margin-top: 4px; font-size: 14px; color: var(--muted); }
 .planning-shopping-item > strong { white-space: nowrap; font-size: 16px; }
 .planning-shopping-item.is-bought > span > strong { text-decoration: line-through; color: var(--muted); }
 .planning-toggle { display: flex; gap: 12px; align-items: flex-start; margin-top: 16px; cursor: pointer; }
-.planning-toggle input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--green); }
+.planning-toggle { align-items: center; justify-content: space-between; flex-direction: row-reverse; }
+.planning-toggle span { flex: 1; }
+
+/* Checkboxes: no square boxes. A list check is a round tick; an on/off setting is a pill switch. */
+input[type=checkbox] { appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center; width: 26px; height: 26px; margin: 0; border: 2px solid var(--line-strong); border-radius: 999px; background: var(--surface); cursor: pointer; transition: background .15s, border-color .15s; }
+input[type=checkbox]::after { content: ""; width: 7px; height: 12px; margin-top: -3px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) scale(0); transition: transform .15s; }
+input[type=checkbox]:checked { background: var(--green); border-color: var(--green); }
+input[type=checkbox]:checked::after { transform: rotate(45deg) scale(1); }
+input[type=checkbox].switch { width: 48px; height: 28px; place-content: center start; padding: 0 3px; border: 0; background: var(--line-strong); }
+input[type=checkbox].switch::after { width: 22px; height: 22px; margin: 0; border: 0; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 25%); transform: none; transition: transform .18s; }
+input[type=checkbox].switch:checked { background: var(--green); }
+input[type=checkbox].switch:checked::after { transform: translateX(20px); }
+input[type=checkbox]:focus-visible { outline: 3px solid rgb(0 112 74 / 35%); outline-offset: 2px; }
 .planning-toggle small { display: block; margin-top: 2px; font-size: 14px; }
 
 /* Fields */
