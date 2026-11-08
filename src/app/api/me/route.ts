@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { assertDatabaseConfigured, db } from "@/lib/db";
 import { getIdentity } from "@/lib/session";
-import { getAdminDb } from "@/lib/supabase";
-import { fromProfileRow, toProfileRow } from "@/lib/profile-mapper";
+import { fromProfileRow } from "@/lib/profile-mapper";
+
+export const runtime = "nodejs";
 
 const profileSchema = z.object({
   role: z.enum(["student", "merchant"]),
@@ -26,11 +28,20 @@ const profileSchema = z.object({
 export async function GET() {
   const identity = await getIdentity();
   if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const db = getAdminDb();
-  if (!db) return NextResponse.json({ profile: null, mode: "demo" });
-  const { data, error } = await db.from("users").select("*").eq("auth0_id", identity.sub).maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ profile: data ? fromProfileRow(data) : null, mode: "cloud" });
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ profile: null, mode: "demo" });
+  }
+  try {
+    assertDatabaseConfigured();
+    const result = await db.query("select * from users where auth0_id = $1 limit 1", [identity.sub]);
+    return NextResponse.json({
+      profile: result.rows[0] ? fromProfileRow(result.rows[0]) : null,
+      mode: "database",
+    });
+  } catch (error) {
+    console.error("GET /api/me failed", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
 }
 
 export async function PUT(request: Request) {
@@ -38,13 +49,52 @@ export async function PUT(request: Request) {
   if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = profileSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const db = getAdminDb();
-  if (!db) return NextResponse.json({ profile: parsed.data, mode: "demo" });
-  const { data, error } = await db
-    .from("users")
-    .upsert(toProfileRow(parsed.data, identity.sub), { onConflict: "auth0_id" })
-    .select("*")
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ profile: fromProfileRow(data), mode: "cloud" });
+  const profile = parsed.data;
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ profile, mode: "demo" });
+  }
+  try {
+    assertDatabaseConfigured();
+    const result = await db.query(
+      `insert into users (
+        auth0_id, role, lang, units, dietary, allergies, cuisines,
+        meat_veg_ratio, default_servings, equipment, max_distance_km,
+        nutrition_goal, onboarding_complete
+      ) values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      on conflict (auth0_id) do update set
+        role = excluded.role,
+        lang = excluded.lang,
+        units = excluded.units,
+        dietary = excluded.dietary,
+        allergies = excluded.allergies,
+        cuisines = excluded.cuisines,
+        meat_veg_ratio = excluded.meat_veg_ratio,
+        default_servings = excluded.default_servings,
+        equipment = excluded.equipment,
+        max_distance_km = excluded.max_distance_km,
+        nutrition_goal = excluded.nutrition_goal,
+        onboarding_complete = excluded.onboarding_complete,
+        updated_at = now()
+      returning *`,
+      [
+        identity.sub,
+        profile.role,
+        profile.lang,
+        JSON.stringify(profile.units),
+        profile.dietary,
+        profile.allergies,
+        profile.cuisines,
+        profile.meatVegRatio,
+        profile.defaultServings,
+        profile.equipment,
+        profile.maxDistanceKm,
+        profile.nutritionGoal,
+        profile.onboardingComplete,
+      ],
+    );
+    return NextResponse.json({ profile: fromProfileRow(result.rows[0]), mode: "database" });
+  } catch (error) {
+    console.error("PUT /api/me failed", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
 }

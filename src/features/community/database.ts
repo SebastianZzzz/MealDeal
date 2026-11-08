@@ -5,11 +5,13 @@ export interface Database {
 
 export class UpdateConflict extends Error {}
 
-/**
- * Replace this function body with A's database adapter once its export exists.
- * Example: return { query: (sql, parameters) => pool.query(sql, parameters) };
- * No credentials, connections, global mock database, or fallback writes live here.
- */
 export async function getDDatabase(): Promise<Database | null> {
-  return null;
+  if (!process.env.DATABASE_URL) return null;
+  const { db } = await import("@/lib/db");
+  return {
+    query: async (sql, parameters) => {
+      const result = await db.query(sql, parameters);
+      return { rows: result.rows as Record<string, unknown>[] };
+    },
+  };
 }
