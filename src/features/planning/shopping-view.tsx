@@ -11,6 +11,7 @@ import { useProductDeals } from "./use-product-deals";
 import { dealLabel } from "./deals";
 import { plural } from "@/lib/plural";
 import { ScreenHeader } from "@/components/screen-header";
+import { syncShopping } from "./plan-sync";
 
 export function ShoppingView() {
   const saved = useSaved(mealPlanStore.getSelected);
@@ -38,6 +39,8 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
       mealPlanStore.setSelected(next);
       setPlan(next);
       setError("");
+      // Best effort: the browser copy keeps working even if the account copy can't be updated.
+      void syncShopping(next);
       return true;
     } catch {
       setError("Could not save your progress. Enable browser storage and try again.");

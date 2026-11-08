@@ -58,6 +58,9 @@ const reportSchema = z.object({
 
 // POST /api/products — save a user-confirmed price-tag report. Numbers are recomputed here from the text.
 export async function POST(request: Request) {
+  // Reports are shared with everyone, so each one must come from a signed-in student.
+  const identity = await getIdentity();
+  if (!identity?.sub) return apiError("UNAUTHORIZED", "Please log in to share a price.");
   const parsed = reportSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return validationError(parsed.error, "Check the highlighted fields and try again.");
   const report = parsed.data;
@@ -80,7 +83,6 @@ export async function POST(request: Request) {
     });
   }
 
-  const identity = await getIdentity();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
   const product: Product = {
     id: productId(store.id, report.name, normalized.packageSizeG, normalized.packageUnit),
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
     isSale: report.isSale,
     source: "report",
     confidence: report.confidence,
-    reportedBy: identity?.sub,
+    reportedBy: identity.sub,
     reportedAt: !report.date || report.date === today ? new Date().toISOString() : `${report.date}T12:00:00-08:00`,
     category: report.category,
   };

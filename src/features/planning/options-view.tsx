@@ -12,6 +12,7 @@ import { useSaved } from "./use-saved";
 import { storeCount } from "./rank-options";
 import { plural } from "@/lib/plural";
 import { ScreenHeader } from "@/components/screen-header";
+import { savePlanToAccount } from "./plan-sync";
 
 function recommendationLabel(option: PlanOption, index: number): string {
   if (index > 0) {
@@ -28,6 +29,7 @@ export function OptionsView() {
   const saved = useSaved(mealPlanStore.getOptions);
   const router = useRouter();
   const [error, setError] = useState("");
+  const [choosing, setChoosing] = useState("");
   if (!saved.loaded) {
     return <main className="page"><p role="status">Loading your options…</p></main>;
   }
@@ -35,15 +37,19 @@ export function OptionsView() {
     return <main className="page"><h1>Let&apos;s plan a meal</h1><p className="muted">Create a plan to compare your meal options.</p><Link className="btn" href="/cook/plan">Enter meal details</Link></main>;
   }
   const { request, response, units } = saved.value;
-  function choose(option: PlanOption) {
+  async function choose(option: PlanOption) {
+    setChoosing(option.id);
+    // Saved to the account when possible, so shopping and cooking continue on another device.
+    const accountPlan = await savePlanToAccount(request, option);
     try {
-      mealPlanStore.setSelected({
+      mealPlanStore.setSelected(accountPlan ?? {
         id: option.id, userId: demoStore.getProfile()?.id ?? "demo-student", request,
         chosen: structuredClone(option), status: "shopping", progress: {}, createdAt: new Date().toISOString(),
       });
       router.push("/cook/shopping");
     } catch {
       setError("Could not save this plan. Enable browser storage and try again.");
+      setChoosing("");
     }
   }
   return <main className="page planning-page">
@@ -62,7 +68,7 @@ export function OptionsView() {
       {option.nutritionTotal && <p className="planning-small">Plan nutrition: {Math.round(option.nutritionTotal.kcal)} kcal · {option.nutritionTotal.proteinG} g protein · {option.nutritionTotal.fatG} g fat · {option.nutritionTotal.carbG} g carbs</p>}
       {Boolean(response.meta.missingNutrition[option.id]?.length) && <p className="planning-small muted">{option.nutritionTotal ? "Some ingredients are missing nutrition data. Totals include only matched ingredients." : "Nutrition data is unavailable for these ingredients."}</p>}
       {option.leftovers.length > 0 && <details className="planning-leftovers"><summary>Left for your next meal</summary><ul>{option.leftovers.map((item) => <li key={item.productId}>{item.name} · {formatWeight(item.qtyG, units)}</li>)}</ul></details>}
-      <button type="button" className="btn planning-full" onClick={() => choose(option)}>Choose this plan →</button>
+      <button type="button" className="btn planning-full" disabled={Boolean(choosing)} onClick={() => void choose(option)}>{choosing === option.id ? "Saving your plan…" : "Choose this plan →"}</button>
     </article>)}
   </main>;
 }
