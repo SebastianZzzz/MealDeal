@@ -117,8 +117,16 @@ labels/certification; richer product metadata is a later catalog improvement.
   one-store plan accurately rather than claiming it has the lowest checkout cost.
 - Sum only database-backed nutrition. Omit totals if nothing is matched; disclose
   missing foods for partial totals. Pantry foods can also contribute nutrients.
-- Reject invalid/over-budget options, with one corrective Gemini retry. Return
-  fewer than two only when explicitly warned; never fabricate duplicate options.
+- Reject invalid/over-budget options. If fewer than two survive, make up to two
+  corrective Gemini retries within the same 50-second deadline. Retain valid
+  options and tell the model their ingredient combinations to avoid duplicates.
+  Retries may relax cuisine specificity, the one-store preference and a
+  mostly_meat ratio, using eligible eggs, tofu or legumes as alternatives.
+  Budget, allergies, dietary restrictions, pantry stock, ingredient IDs,
+  equipment, cooking time, servings and complete meal coverage remain unchanged.
+  Return fewer than two only with a warning that generation found limited
+  choices, not a claim that a second option cannot exist. Never fabricate
+  duplicate options or silently switch to demo recipes to fill the count.
 
 ## Verification
 
@@ -152,6 +160,27 @@ Health Canada's meat-temperature guidance. The second review improved those
 cases, but meal variety and dairy/ingredient-variant choices remain weak. Lite
 is useful for basic demo recipes, not reliably validated balanced meal advice.
 No protein or calorie adequacy is inferred without database-backed nutrition.
+
+Following PR #3's review, prompts now distinguish non-vegetarian balanced and
+mostly_meat requests: prefer eligible meat, fish, eggs, tofu or legumes as the
+main protein, rather than defaulting to a rice, apples and yogurt meal when a
+preferred protein fits. Dairy remains an allowed protein for vegetarian plans;
+vegan and allergy restrictions always take precedence. This is qualitative
+prompt guidance, not a nutrient guarantee. Automated regressions verify the
+guidance and recover two affordable options from repeated or over-budget model
+proposals, including a $15 mostly_meat request.
+
+A fresh live review of these follow-ups returned two balanced dinner options,
+three soy/peanut-free vegetarian options and three $15 mostly_meat options,
+all passing ingredient, meal-coverage, pantry and cost checks. Each case used
+two calls to gemini-3.5-flash-lite in about 4.3-6.2 seconds; no Flash call was
+needed. Balanced options used pork tenderloin or tofu rather than dairy as
+the main protein. The low-budget options cost $7.48, $8.97 and $12.48.
+Quality remains imperfect: the model still used an ambiguous tofu-or-dessert
+listing, sometimes substituted fruit for vegetables, and suggested quick
+pan-cooking for pork picnic despite the cut-specific prompt. These observed
+limitations remain open; the checks establish arithmetic and constraint
+handling, not complete recipe quality or nutritional adequacy.
 
 An unrelated plan summary was also observed; single-recipe option titles now
 come from the actual recipe title. This deterministic fix has a regression test.

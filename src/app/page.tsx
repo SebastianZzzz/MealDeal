@@ -16,10 +16,13 @@ export default async function Home() {
         </div>
       </section>
       <section style={{ display: "grid", gap: 12 }}>
+        <Link className="btn secondary" href="/report">Snap a price tag</Link>
         <Link className="btn" href="/cook">Cook at home</Link>
         <Link className="btn" href="/eat-out">Eat Out</Link>
         <Link className="btn" href="/support">Need food support?</Link>
-        {user ? (
+        {user?.sub === "demo|student" ? (
+          <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Local demo mode</p>
+        ) : user ? (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <Link className="muted" href="/onboarding">Update my kitchen</Link>
             <a className="muted" href="/auth/logout">Log out</a>

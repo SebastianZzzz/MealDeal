@@ -28,6 +28,9 @@ const profileSchema = z.object({
 export async function GET() {
   const identity = await getIdentity();
   if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ profile: null, mode: "demo" });
+  }
   try {
     assertDatabaseConfigured();
     const result = await db.query("select * from users where auth0_id = $1 limit 1", [identity.sub]);
@@ -47,6 +50,9 @@ export async function PUT(request: Request) {
   const parsed = profileSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const profile = parsed.data;
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ profile, mode: "demo" });
+  }
   try {
     assertDatabaseConfigured();
     const result = await db.query(
