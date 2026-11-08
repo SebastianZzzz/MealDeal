@@ -1,7 +1,8 @@
 # MealDeal architecture
 
 MealDeal is one Next.js App Router application deployed to Vercel. Auth0 owns
-identity; authenticated server routes access Supabase. Gemini may interpret
+identity; authenticated server routes access Tiger Data through one PostgreSQL
+pool. Gemini may interpret
 images and compose recipes, but deterministic application code validates IDs and
 calculates prices, quantities, and nutrition.
 
@@ -11,22 +12,23 @@ calculates prices, quantities, and nutrition.
 src/
   app/          pages and HTTP route handlers; keep these thin
   components/   reusable cross-feature visual components
-  contracts/    stable types exchanged between feature owners
+  contracts/    A-owned local profile and pantry shapes
   features/     private feature UI and business logic
-  lib/          infrastructure adapters (Auth0, Supabase, environment)
-supabase/
+  lib/          server-only infrastructure adapters (Auth0 and PostgreSQL)
+  types.ts      shared cross-team contract; changed only via a dedicated PR
+db/
   migrations/   immutable, ordered database changes
-  seed/         demo data (to be added by the catalog owner)
 docs/           architecture and team decisions
-public/         static assets (add only optimized, licensed assets)
+public/         static assets; user images are never stored
 ```
 
 ## Dependency direction
 
-`app → features → contracts`, while `lib` contains external-service adapters.
+`app → features → types`, while `lib` contains external-service adapters.
 Features must not reach into another feature's private files. When B and C agree
-on a product shape, for example, it is added to `contracts` before either module
-depends on it.
+on a product shape, for example, it is added to `src/types.ts` in its own small
+PR before either module depends on it. A's profile and pantry shapes are the
+exception and remain private to `src/contracts/profile.ts`.
 
 ## API ownership
 
