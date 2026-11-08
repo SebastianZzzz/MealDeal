@@ -9,7 +9,9 @@ import { generatePlan } from "../src/features/planning/service";
 import type { PlanningInput } from "../src/features/planning/schema";
 import { defaultProfile } from "../src/contracts/profile";
 import type { DraftOption } from "../src/features/planning/schema";
-import type { Food, PantryItem, PlanRequest, Product, Store } from "../src/types";
+import type { DealCheck, Food, PantryItem, PlanRequest, Product, Store } from "../src/types";
+import { parseProductDeal, preferRealDeals, dealLabel } from "../src/features/planning/deals";
+import { loadProductDeals } from "../src/features/planning/deal-client";
 
 const request: PlanRequest = { budget: 10, servings: 2, duration: "one_meal", batchCook: false, cuisines: [], meatVeg: "balanced" };
 const product: Product = { id: "rice", storeId: "near", name: "Rice", packageSizeG: 500, packagePrice: 2.5, packageUnit: "g", pricePer100: 999, isSale: true, source: "flyer", confidence: 1, reportedAt: "2026-11-07" };
@@ -140,6 +142,8 @@ async function withGeminiMock(run: () => Promise<void>, respond: (call: number, 
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.GEMINI_API_KEY;
   const previousDemo = process.env.NEXT_PUBLIC_DEMO_MODE;
+  const previousOrigin = process.env.APP_BASE_URL;
+  delete process.env.APP_BASE_URL;
   process.env.GEMINI_API_KEY = "test-placeholder-never-sent";
   process.env.NEXT_PUBLIC_DEMO_MODE = "1";
   let calls = 0;
@@ -160,6 +164,11 @@ async function withGeminiMock(run: () => Promise<void>, respond: (call: number, 
       delete process.env.NEXT_PUBLIC_DEMO_MODE;
     } else {
       process.env.NEXT_PUBLIC_DEMO_MODE = previousDemo;
+    }
+    if (previousOrigin === undefined) {
+      delete process.env.APP_BASE_URL;
+    } else {
+      process.env.APP_BASE_URL = previousOrigin;
     }
   }
 }
@@ -216,4 +225,72 @@ test("provider failures are surfaced instead of silently fabricating demo recipe
   await withGeminiMock(async () => {
     await assert.rejects(generatePlan(input), /could not return valid plans/);
   }, () => new Response("Provider failed", { status: 503 }));
+});
+
+test("matches the rice, chicken and broccoli acceptance example", () => {
+  const products: Product[] = [
+    { ...product, id: "rice", packageSizeG: 2000, packagePrice: 4.99 },
+    { ...product, id: "chicken", name: "Chicken", packageSizeG: 1000, packagePrice: 8.8 },
+    { ...product, id: "broccoli", name: "Broccoli", packageSizeG: 500, packagePrice: 1.99 },
+  ];
+  const plan = draft();
+  plan.recipes[0].baseServings = 2;
+  plan.recipes[0].ingredients = [
+    { productId: "rice", pantryItemId: null, name: "Rice", qtyG: 300 },
+    { productId: "chicken", pantryItemId: null, name: "Chicken", qtyG: 400 },
+    { productId: "broccoli", pantryItemId: null, name: "Broccoli", qtyG: 300 },
+  ];
+  const result = calculateOption(plan, request, products, [], [], "acceptance").option;
+  assert.equal(result.recipeCost, 5.46);
+  assert.equal(result.shoppingCost, 15.78);
+  assert.equal(result.costPerServing, 2.73);
+  assert.equal(result.withinBudget, false);
+  assert.deepEqual(result.leftovers.map((item) => item.qtyG), [1700, 600, 200]);
+});
+
+const deal: DealCheck = {
+  productId: product.id, storeId: product.storeId, currentPer100: 0.5,
+  medianPer100: 0.6, diffPct: -16.67, observations: 4,
+  hasSampleData: true, verdict: "real_deal",
+};
+
+test("validates shared DealCheck identities and marks sample history", () => {
+  assert.deepEqual(parseProductDeal(deal, product), deal);
+  assert.equal(parseProductDeal({ ...deal, productId: "different" }, product), null);
+  assert.equal(parseProductDeal({ ...deal, storeId: "different" }, product), null);
+  assert.equal(parseProductDeal({ ...deal, verdict: "unknown-verdict" }, product), null);
+  assert.equal(parseProductDeal(null, product), null);
+  assert.equal(dealLabel(deal), "Real deal · sample price history");
+  assert.equal(dealLabel({ ...deal, verdict: "not_enough_data", hasSampleData: false }), "Not enough price history");
+});
+
+test("prefers real deals while preserving the remaining candidate order", () => {
+  const products = [product, { ...product, id: "better-deal" }, { ...product, id: "third" }];
+  const ranked = preferRealDeals(products, { "better-deal": { ...deal, productId: "better-deal" } });
+  assert.deepEqual(ranked.map((item) => item.id), ["better-deal", "rice", "third"]);
+  assert.equal(products[0].id, "rice");
+});
+
+test("deal endpoint failures preserve planning without fabricated verdicts", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousOrigin = process.env.APP_BASE_URL;
+  process.env.APP_BASE_URL = "https://mealdeal.example";
+  try {
+    globalThis.fetch = async (url) => {
+      assert.equal(String(url), "https://mealdeal.example/api/products/rice/deal");
+      return Response.json(deal);
+    };
+    assert.deepEqual(await loadProductDeals([product]), { rice: deal });
+    globalThis.fetch = async () => new Response("Not found", { status: 404 });
+    assert.deepEqual(await loadProductDeals([product]), {});
+    globalThis.fetch = async () => { throw new Error("Offline"); };
+    assert.deepEqual(await loadProductDeals([product]), {});
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousOrigin === undefined) {
+      delete process.env.APP_BASE_URL;
+    } else {
+      process.env.APP_BASE_URL = previousOrigin;
+    }
+  }
 });

@@ -7,6 +7,8 @@ import { mealPlanStore } from "@/lib/meal-plan-store";
 import type { MealPlan } from "@/types";
 import { formatMoney, formatWeight } from "./format";
 import { useSaved } from "./use-saved";
+import { useProductDeals } from "./use-product-deals";
+import { dealLabel } from "./deals";
 
 export function ShoppingView() {
   const saved = useSaved(mealPlanStore.getSelected);
@@ -27,6 +29,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
   const storeIds = [...new Set(plan.chosen.shoppingList.map((item) => item.storeId))];
   const bought = plan.chosen.shoppingList.filter((item) => item.bought).length;
   const total = plan.chosen.shoppingList.length;
+  const deals = useProductDeals(plan.chosen.shoppingList);
 
   function save(next: MealPlan): boolean {
     try {
@@ -50,7 +53,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
       return;
     }
     if (save({ ...plan, status: "cooking" })) {
-      router.push("/cook/ready");
+      router.push("/cook/cooking");
     }
   }
 
@@ -75,13 +78,14 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
             <span><strong>{item.name}</strong><small className="muted">{item.packages} × {saved ? formatWeight(item.packageSizeG, saved.units) : `${item.packageSizeG} g`} package · {formatMoney(item.packagePrice)} each</small>
               {product?.source === "report" && <small className="planning-source">Community reported · {product.reportedAt.slice(0, 10)}</small>}
               {product?.isSale && <small className="planning-source">Sale{product.validUntil ? ` · valid until ${product.validUntil.slice(0, 10)}` : ""}</small>}
+              {deals[item.productId] && <small className="planning-source">{dealLabel(deals[item.productId])}</small>}
             </span><strong>{formatMoney(item.lineTotal)}</strong>
           </label></li>;
         })}</ul>
       </section>;
     })}
     {error && <p role="alert" className="planning-error">{error}</p>}
-    <button className="btn planning-full" disabled={bought !== total} onClick={finish}>Finish shopping →</button>
+    {bought === total && <button className="btn planning-full" onClick={finish}>Start cooking →</button>}
     <p className="planning-small muted">{bought === total ? "Your ingredients are ready. Your plan is saved on this device." : "Check off each item after buying it to finish shopping."}</p>
   </main>;
 }

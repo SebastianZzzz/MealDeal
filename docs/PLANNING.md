@@ -2,31 +2,31 @@
 
 ## Baseline and contracts
 
-This local feature is based on A's `feature/onboarding` at `772b979`.
-`src/types.ts` is an unchanged copy of the supplied v2 shared types. New planning
-code imports from `@/types`. A's existing `src/contracts` and authentication stay
-intact. `src/features/planning/adapter.ts` translates the older profile fields
-and equipment names at the browser boundary. Reconcile the two type entry points
-with A before merging; do not make B or D depend on the older planning types.
+This feature merges current `main`, including PR #2's shared contract.
+`src/types.ts` is kept exactly as it exists on main; new planning code imports
+from `@/types`. Shared-contract changes belong in separate PRs. A's existing
+profile scaffold is adapted at the browser boundary by `adapter.ts`.
 
-The v2 requirement uses Supabase Auth, while A's baseline still uses Auth0.
-Changing identity providers is A's integration work. Planning uses the current
-`getIdentity()` boundary and works with A's default local demo mode.
+Authentication is Auth0 only. Tiger Data integration will use A's server-only
+shared pool in `src/lib/db.ts`; until it exists, C uses mock JSON and localStorage.
+No image storage is added. Recipe generation and new UI text are English.
 
 ## Local flow
 
 `/onboarding` → `/cook` (confirm kitchen) → `/cook/plan` → `/cook/options`
-→ `/cook/shopping` → `/cook/ready`.
+→ `/cook/shopping` → `/cook/cooking` (D).
 
-`/cook/ready` is a shopping-completion handoff screen, not D's interactive cooking
-mode. No cooking steps appear during shopping. D can replace that screen or
-change the navigation target in `ShoppingView.finish()`.
+`/cook/ready` is only a compatibility redirect to `/cook/cooking`. No cooking
+steps appear during shopping. The cooking page remains owned by D and must be
+included from D's branch during integration; C does not copy or implement it.
 
-The selected `MealPlan` is stored on this browser under `mealdeal.plan.v2`.
+The selected `MealPlan` is stored directly under `mealdeal.currentPlan`, without
+a wrapper. The existing options-cache key is unchanged.
 `@/lib/meal-plan-store` exposes `getSelected()` and `setSelected()` for D, including
 `chosen.recipes`, `status`, `progress` and item-level `bought` state. Completion is
 blocked until every item is bought. Reloading restores progress. Empty lists are
-immediately complete. This is demo persistence only; Supabase persistence and
+immediately complete. `Start cooking` appears after all items are checked and
+saves `status: "cooking"` before navigation. This is demo persistence only; cloud persistence and
 `PATCH /api/plan/:id` are deferred to integration with A's meal_plans table and
 user identity. There is no process-global pretend database.
 
@@ -104,7 +104,27 @@ labels/certification; richer product metadata is a later catalog improvement.
 ## Verification
 
 Run `npm run test:planning`, `npm run lint` and `npm run build`.
-The 16 planning tests cover costs, package rounding, pantry limits, meal coverage,
+The planning tests cover costs, package rounding, pantry limits, meal coverage,
 batch scaling, missing nutrition, dates, distance, restrictions, ID validation,
 Gemini structured-output requests, corrective retries and provider failures.
 No Gemini call or paid service is required by tests.
+
+## P1 deal integration
+
+Use the exact `DealCheck` from `@/types` and B's
+`GET /api/products/:id/deal`. Shopping items show verdict labels and explicitly
+mark `hasSampleData` history. Invalid payloads, mismatched product/store IDs,
+unavailable endpoints and timeouts produce no invented labels.
+Candidate selection preserves current filtering and cost rules, then stably
+prefers products with `verdict: "real_deal"`. Server lookups use trusted
+`APP_BASE_URL`; without it, generation keeps the existing price order. This
+integration becomes live when B publishes the endpoint after 20:00.
+
+## Shared-file integration notes
+
+C's PR changes `src/components/preflight.tsx` to connect A's confirmation screen
+to `/cook/plan`, and adds scoped planning styles in `src/app/globals.css`.
+A should build on both files during integration. `loadCatalog()` and the three
+B-owned mock product/store/metadata arrays are retained without redesigning IDs
+or changing their v2 shape. Store IDs such as `save-on-foods@wesbrook-village`
+are accepted unchanged. The only catalog-schema adjustment removes imageUrl.

@@ -1,5 +1,5 @@
-import { ReadyView } from "@/features/planning/ready-view";
+import { redirect } from "next/navigation";
 
 export default function ReadyPage() {
-  return <ReadyView />;
+  redirect("/cook/cooking");
 }

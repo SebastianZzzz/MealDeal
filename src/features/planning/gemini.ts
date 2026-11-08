@@ -30,7 +30,7 @@ export async function generateWithGemini(request: PlanRequest, profile: UserProf
     "Use only the supplied equipment. Honor allergies, dietary needs, cuisines, meatVeg, cooking time and notes.",
     "Plan entire-package checkout purchases under the total budget. A small fraction of an expensive pack still costs the full pack.",
     "Ingredient quantities appear separately in the UI. Do not hard-code numeric ingredient quantities or serving counts into step detail.",
-    "Write recipe titles and instructions in profile.units.lang. Explain recipes clearly. timerSec is null for untimed steps.",
+    "Write all recipe titles and instructions in English. Explain recipes clearly. timerSec is null for untimed steps.",
     "Use realistic one-portion cook times; code estimates a longer duration for batches. Prefer ingredient reuse across days.",
     JSON.stringify({ request, profile, pantry, products, requiredMealSlots: getMealSlots(request) }),
     feedback ? `Previous attempt failed validation: ${feedback}. Return corrected complete options.` : "",

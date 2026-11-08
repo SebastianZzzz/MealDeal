@@ -7,7 +7,7 @@ export function formatMoney(value: number): string {
 export function formatWeight(grams: number, units: UnitPrefs): string {
   const value = grams / GRAMS_PER[units.weight];
   const digits = units.weight === "g" ? 1 : 3;
-  return `${new Intl.NumberFormat(units.lang, { maximumFractionDigits: digits }).format(value)} ${units.weight === "jin" ? "斤" : units.weight}`;
+  return `${new Intl.NumberFormat("en-CA", { maximumFractionDigits: digits }).format(value)} ${units.weight}`;
 }
 
 export function formatMealSlots(slots: string[]): string {

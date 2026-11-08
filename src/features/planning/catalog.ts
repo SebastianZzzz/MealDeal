@@ -10,7 +10,6 @@ const productSchema = z.object({
   packagePrice: z.number().finite().nonnegative(), pricePer100: z.number().finite().nonnegative(),
   isSale: z.boolean(), validUntil: z.string().optional(), source: z.enum(["flyer", "report"]),
   confidence: z.number().min(0).max(1), reportedAt: z.string(), reportedBy: z.string().optional(),
-  imageUrl: z.string().optional(),
   category: z.enum(["grain", "protein", "vegetable", "fruit", "dairy", "sauce", "ready_meal", "other"]).optional(),
 });
 const storeSchema = z.object({

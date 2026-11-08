@@ -4,7 +4,7 @@ import type { MealPlan, PlanRequest, UnitPrefs } from "@/types";
 import type { PlanningResponse } from "@/contracts/planning-api";
 
 const OPTIONS_KEY = "mealdeal.planning.options.v2";
-const SELECTED_KEY = "mealdeal.plan.v2";
+const SELECTED_KEY = "mealdeal.currentPlan";
 
 export interface SavedOptions { request: PlanRequest; response: PlanningResponse; units: UnitPrefs }
 

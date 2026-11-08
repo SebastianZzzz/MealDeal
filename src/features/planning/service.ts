@@ -6,6 +6,8 @@ import { createDemoOptions } from "./demo";
 import { filterPantry, filterProducts } from "./filter";
 import { generateWithGemini } from "./gemini";
 import { draftOptionSchema, type PlanningInput } from "./schema";
+import { loadProductDeals } from "./deal-client";
+import { preferRealDeals } from "./deals";
 
 export class PlanningError extends Error {
   constructor(message: string, public readonly status = 422) {
@@ -28,7 +30,8 @@ export async function generatePlan(input: PlanningInput): Promise<PlanningRespon
   if (input.profile.meatVeg === "vegetarian") {
     profile.meatVeg = "vegetarian";
   }
-  const products = filterProducts(catalog.products, catalog.stores, profile);
+  const candidates = filterProducts(catalog.products, catalog.stores, profile);
+  const products = preferRealDeals(candidates, await loadProductDeals(candidates));
   const pantry = filterPantry(input.pantry, profile);
   if (!products.length && !pantry.some((item) => item.qtyG === undefined || item.qtyG > 0)) {
     throw new PlanningError("No eligible products are available. Check your shopping range, restrictions and price dates.");
