@@ -1,1 +1,398 @@
-[]
+[
+  {
+    "id": "rice-white-raw",
+    "name": "White rice, long-grain, raw",
+    "kcal": 365,
+    "proteinG": 7.13,
+    "fatG": 0.66,
+    "carbG": 79.95,
+    "dbRef": "USDA FoodData Central, SR Legacy: Rice, white, long-grain, regular, raw"
+  },
+  {
+    "id": "pasta-dry",
+    "name": "Pasta, dry",
+    "kcal": 371,
+    "proteinG": 13.04,
+    "fatG": 1.51,
+    "carbG": 74.67,
+    "dbRef": "USDA FoodData Central, SR Legacy: Pasta, dry, unenriched"
+  },
+  {
+    "id": "noodles-ramen-dry",
+    "name": "Instant ramen noodles, dry",
+    "kcal": 440,
+    "proteinG": 10.2,
+    "fatG": 17.6,
+    "carbG": 60.3,
+    "dbRef": "USDA FoodData Central, SR Legacy: Soup, ramen noodle, any flavor, dry"
+  },
+  {
+    "id": "oats-dry",
+    "name": "Oats, dry",
+    "kcal": 379,
+    "proteinG": 13.15,
+    "fatG": 6.52,
+    "carbG": 67.7,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cereals, oats, regular and quick, not fortified, dry"
+  },
+  {
+    "id": "flour-wheat",
+    "name": "Wheat flour, all-purpose",
+    "kcal": 364,
+    "proteinG": 10.33,
+    "fatG": 0.98,
+    "carbG": 76.31,
+    "dbRef": "USDA FoodData Central, SR Legacy: Wheat flour, white, all-purpose, unenriched"
+  },
+  {
+    "id": "bread-white",
+    "name": "White bread",
+    "kcal": 266,
+    "proteinG": 8.85,
+    "fatG": 3.33,
+    "carbG": 49.42,
+    "dbRef": "USDA FoodData Central, SR Legacy: Bread, white, commercially prepared"
+  },
+  {
+    "id": "bread-whole-wheat",
+    "name": "Whole wheat bread",
+    "kcal": 252,
+    "proteinG": 12.45,
+    "fatG": 3.5,
+    "carbG": 42.71,
+    "dbRef": "USDA FoodData Central, SR Legacy: Bread, whole-wheat, commercially prepared"
+  },
+  {
+    "id": "bread-sourdough",
+    "name": "French or sourdough bread",
+    "kcal": 272,
+    "proteinG": 10.75,
+    "fatG": 2.42,
+    "carbG": 51.88,
+    "dbRef": "USDA FoodData Central, SR Legacy: Bread, french or vienna (includes sourdough)"
+  },
+  {
+    "id": "potato-raw",
+    "name": "Potatoes, raw",
+    "kcal": 77,
+    "proteinG": 2.05,
+    "fatG": 0.09,
+    "carbG": 17.49,
+    "dbRef": "USDA FoodData Central, SR Legacy: Potatoes, flesh and skin, raw"
+  },
+  {
+    "id": "chicken-whole-raw",
+    "name": "Chicken, whole, raw",
+    "kcal": 215,
+    "proteinG": 18.6,
+    "fatG": 15.06,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Chicken, broilers or fryers, meat and skin, raw"
+  },
+  {
+    "id": "chicken-breast-raw",
+    "name": "Chicken breast, skinless, raw",
+    "kcal": 120,
+    "proteinG": 22.5,
+    "fatG": 2.62,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw"
+  },
+  {
+    "id": "chicken-drumstick-raw",
+    "name": "Chicken drumsticks, raw",
+    "kcal": 161,
+    "proteinG": 18.08,
+    "fatG": 9.2,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Chicken, broilers or fryers, drumstick, meat and skin, raw"
+  },
+  {
+    "id": "chicken-wing-raw",
+    "name": "Chicken wings, raw",
+    "kcal": 191,
+    "proteinG": 17.52,
+    "fatG": 12.85,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Chicken, broilers or fryers, wing, meat and skin, raw"
+  },
+  {
+    "id": "beef-ground-85-raw",
+    "name": "Ground beef, 85% lean, raw",
+    "kcal": 215,
+    "proteinG": 18.59,
+    "fatG": 15,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Beef, ground, 85% lean meat / 15% fat, raw"
+  },
+  {
+    "id": "pork-tenderloin-raw",
+    "name": "Pork tenderloin, raw",
+    "kcal": 120,
+    "proteinG": 20.95,
+    "fatG": 3.51,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Pork, fresh, loin, tenderloin, separable lean only, raw"
+  },
+  {
+    "id": "pork-loin-chop-raw",
+    "name": "Pork loin chops, raw",
+    "kcal": 172,
+    "proteinG": 20.6,
+    "fatG": 9.4,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Pork, fresh, loin, center loin (chops), bone-in, separable lean and fat, raw"
+  },
+  {
+    "id": "pork-shoulder-raw",
+    "name": "Pork shoulder, raw",
+    "kcal": 236,
+    "proteinG": 17.18,
+    "fatG": 18.17,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Pork, fresh, shoulder, whole, separable lean and fat, raw"
+  },
+  {
+    "id": "salmon-raw",
+    "name": "Salmon, Atlantic, farmed, raw",
+    "kcal": 208,
+    "proteinG": 20.42,
+    "fatG": 13.42,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Fish, salmon, Atlantic, farmed, raw"
+  },
+  {
+    "id": "egg-raw",
+    "name": "Eggs, raw",
+    "kcal": 143,
+    "proteinG": 12.56,
+    "fatG": 9.51,
+    "carbG": 0.72,
+    "dbRef": "USDA FoodData Central, SR Legacy: Egg, whole, raw, fresh"
+  },
+  {
+    "id": "tofu-raw",
+    "name": "Tofu, regular, raw",
+    "kcal": 76,
+    "proteinG": 8.08,
+    "fatG": 4.78,
+    "carbG": 1.87,
+    "dbRef": "USDA FoodData Central, SR Legacy: Tofu, raw, regular, prepared with calcium sulfate"
+  },
+  {
+    "id": "lentils-dry",
+    "name": "Lentils, dry",
+    "kcal": 352,
+    "proteinG": 24.63,
+    "fatG": 1.06,
+    "carbG": 63.35,
+    "dbRef": "USDA FoodData Central, SR Legacy: Lentils, raw"
+  },
+  {
+    "id": "carrot-raw",
+    "name": "Carrots, raw",
+    "kcal": 41,
+    "proteinG": 0.93,
+    "fatG": 0.24,
+    "carbG": 9.58,
+    "dbRef": "USDA FoodData Central, SR Legacy: Carrots, raw"
+  },
+  {
+    "id": "broccoli-raw",
+    "name": "Broccoli, raw",
+    "kcal": 34,
+    "proteinG": 2.82,
+    "fatG": 0.37,
+    "carbG": 6.64,
+    "dbRef": "USDA FoodData Central, SR Legacy: Broccoli, raw"
+  },
+  {
+    "id": "tomato-raw",
+    "name": "Tomatoes, raw",
+    "kcal": 18,
+    "proteinG": 0.88,
+    "fatG": 0.2,
+    "carbG": 3.89,
+    "dbRef": "USDA FoodData Central, SR Legacy: Tomatoes, red, ripe, raw, year round average"
+  },
+  {
+    "id": "onion-raw",
+    "name": "Onions, raw",
+    "kcal": 40,
+    "proteinG": 1.1,
+    "fatG": 0.1,
+    "carbG": 9.34,
+    "dbRef": "USDA FoodData Central, SR Legacy: Onions, raw"
+  },
+  {
+    "id": "garlic-raw",
+    "name": "Garlic, raw",
+    "kcal": 149,
+    "proteinG": 6.36,
+    "fatG": 0.5,
+    "carbG": 33.06,
+    "dbRef": "USDA FoodData Central, SR Legacy: Garlic, raw"
+  },
+  {
+    "id": "cabbage-raw",
+    "name": "Cabbage, raw",
+    "kcal": 25,
+    "proteinG": 1.28,
+    "fatG": 0.1,
+    "carbG": 5.8,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cabbage, raw"
+  },
+  {
+    "id": "spinach-raw",
+    "name": "Spinach, raw",
+    "kcal": 23,
+    "proteinG": 2.86,
+    "fatG": 0.39,
+    "carbG": 3.63,
+    "dbRef": "USDA FoodData Central, SR Legacy: Spinach, raw"
+  },
+  {
+    "id": "mushroom-raw",
+    "name": "White mushrooms, raw",
+    "kcal": 22,
+    "proteinG": 3.09,
+    "fatG": 0.34,
+    "carbG": 3.26,
+    "dbRef": "USDA FoodData Central, SR Legacy: Mushrooms, white, raw"
+  },
+  {
+    "id": "bell-pepper-raw",
+    "name": "Bell peppers, raw",
+    "kcal": 31,
+    "proteinG": 0.99,
+    "fatG": 0.3,
+    "carbG": 6.03,
+    "dbRef": "USDA FoodData Central, SR Legacy: Peppers, sweet, red, raw"
+  },
+  {
+    "id": "cucumber-raw",
+    "name": "Cucumber, raw",
+    "kcal": 15,
+    "proteinG": 0.65,
+    "fatG": 0.11,
+    "carbG": 3.63,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cucumber, with peel, raw"
+  },
+  {
+    "id": "apple-raw",
+    "name": "Apples, raw",
+    "kcal": 52,
+    "proteinG": 0.26,
+    "fatG": 0.17,
+    "carbG": 13.81,
+    "dbRef": "USDA FoodData Central, SR Legacy: Apples, raw, with skin"
+  },
+  {
+    "id": "banana-raw",
+    "name": "Bananas, raw",
+    "kcal": 89,
+    "proteinG": 1.09,
+    "fatG": 0.33,
+    "carbG": 22.84,
+    "dbRef": "USDA FoodData Central, SR Legacy: Bananas, raw"
+  },
+  {
+    "id": "milk-2pct",
+    "name": "Milk, 2%",
+    "kcal": 50,
+    "proteinG": 3.3,
+    "fatG": 1.98,
+    "carbG": 4.8,
+    "dbRef": "USDA FoodData Central, SR Legacy: Milk, reduced fat, fluid, 2% milkfat"
+  },
+  {
+    "id": "yogurt-plain",
+    "name": "Yogurt, plain",
+    "kcal": 61,
+    "proteinG": 3.47,
+    "fatG": 3.25,
+    "carbG": 4.66,
+    "dbRef": "USDA FoodData Central, SR Legacy: Yogurt, plain, whole milk"
+  },
+  {
+    "id": "yogurt-greek",
+    "name": "Greek yogurt, plain",
+    "kcal": 97,
+    "proteinG": 9,
+    "fatG": 5,
+    "carbG": 3.98,
+    "dbRef": "USDA FoodData Central, SR Legacy: Yogurt, Greek, plain, whole milk"
+  },
+  {
+    "id": "cheese-cheddar",
+    "name": "Cheddar cheese",
+    "kcal": 403,
+    "proteinG": 24.9,
+    "fatG": 33.14,
+    "carbG": 1.28,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cheese, cheddar"
+  },
+  {
+    "id": "cheese-processed",
+    "name": "Processed cheese slices",
+    "kcal": 366,
+    "proteinG": 18.13,
+    "fatG": 30.71,
+    "carbG": 4.78,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cheese, pasteurized process, American"
+  },
+  {
+    "id": "cheese-ricotta",
+    "name": "Ricotta cheese",
+    "kcal": 174,
+    "proteinG": 11.26,
+    "fatG": 12.98,
+    "carbG": 3.04,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cheese, ricotta, whole milk"
+  },
+  {
+    "id": "cheese-cream",
+    "name": "Cream cheese",
+    "kcal": 342,
+    "proteinG": 5.93,
+    "fatG": 34.24,
+    "carbG": 4.07,
+    "dbRef": "USDA FoodData Central, SR Legacy: Cheese, cream"
+  },
+  {
+    "id": "butter",
+    "name": "Butter",
+    "kcal": 717,
+    "proteinG": 0.85,
+    "fatG": 81.11,
+    "carbG": 0.06,
+    "dbRef": "USDA FoodData Central, SR Legacy: Butter, salted"
+  },
+  {
+    "id": "oil-vegetable",
+    "name": "Vegetable oil",
+    "kcal": 884,
+    "proteinG": 0,
+    "fatG": 100,
+    "carbG": 0,
+    "dbRef": "USDA FoodData Central, SR Legacy: Oil, canola"
+  },
+  {
+    "id": "soy-sauce",
+    "name": "Soy sauce",
+    "kcal": 53,
+    "proteinG": 8.14,
+    "fatG": 0.57,
+    "carbG": 4.93,
+    "dbRef": "USDA FoodData Central, SR Legacy: Soy sauce made from soy and wheat (shoyu)"
+  },
+  {
+    "id": "sugar",
+    "name": "Sugar",
+    "kcal": 387,
+    "proteinG": 0,
+    "fatG": 0,
+    "carbG": 99.98,
+    "dbRef": "USDA FoodData Central, SR Legacy: Sugars, granulated"
+  }
+]

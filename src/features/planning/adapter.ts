@@ -1,6 +1,7 @@
 import type { PantryItem as LegacyPantry, UserProfile as LegacyProfile } from "@/contracts";
 import type { Equipment, MeatVeg, PantryItem, UserProfile } from "@/types";
 import { estimatePantryGrams } from "@/lib/pantry-amounts";
+import { matchFood } from "@/features/catalog/food-match";
 
 const equipmentNames: Record<string, Equipment> = {
   stovetop: "stove", stove: "stove", pot: "pot", pan: "pan", oven: "oven",
@@ -29,7 +30,8 @@ export function adaptProfile(profile: LegacyProfile): UserProfile {
 export function adaptPantry(items: LegacyPantry[], userId: string): PantryItem[] {
   return items.map((item, index) => ({
     id: item.id ?? `pantry-${index}`, userId, name: item.name,
-    foodId: item.foodId ?? undefined,
+    // Pantry rows don't carry a nutrition link yet; match the name like a product.
+    foodId: matchFood(item.name),
     // Exact grams win; otherwise a rough amount becomes an estimate. Seasonings and "not sure" are unlimited.
     qtyG: estimatePantryGrams(item),
     updatedAt: item.updatedAt ?? new Date().toISOString(),
