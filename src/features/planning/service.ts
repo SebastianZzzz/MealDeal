@@ -4,10 +4,11 @@ import { calculateOption } from "./calculate";
 import { loadCatalog, type Catalog } from "./catalog";
 import { createDemoOptions } from "./demo";
 import { filterPantry, filterProducts } from "./filter";
-import { generateWithGemini } from "./gemini";
+import { generateWithGemini, PlanningModelError } from "./gemini";
 import { draftOptionSchema, type PlanningInput } from "./schema";
 import { loadProductDeals } from "./deal-client";
 import { preferRealDeals } from "./deals";
+import { comparePlanOptions } from "./rank-options";
 
 export class PlanningError extends Error {
   constructor(message: string, public readonly status = 422) {
@@ -60,14 +61,22 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   const options: PlanningResponse["options"] = [];
   const missingNutrition: Record<string, string[]> = {};
   const signatures = new Set<string>();
+  // Share the time budget and unavailable-model list across any corrective retry.
+  const generationContext = { deadline: Date.now() + 50000, unavailableModels: new Set<string>() };
   let feedback = "";
   for (let attempt = 0; attempt < (mode === "gemini" ? 2 : 1); attempt++) {
     let drafts: unknown[];
     try {
       drafts = mode === "gemini"
-        ? await generateWithGemini(input.request, profile, pantry, products, feedback)
+        ? await generateWithGemini(input.request, profile, pantry, products, feedback, generationContext)
         : createDemoOptions(input.request, profile, products, pantry);
-    } catch {
+    } catch (error) {
+      if (error instanceof PlanningModelError) {
+        if (options.length) {
+          break;
+        }
+        throw new PlanningError("The recipe service is unavailable right now. Please try again later.", 502);
+      }
       if (attempt === 0 && mode === "gemini") {
         feedback = "Return valid structured JSON with complete, affordable options.";
         continue;
@@ -109,6 +118,6 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   if (options.length < 2) {
     warnings.push("Only one complete option fits the budget and constraints.");
   }
-  options.sort((a, b) => a.shoppingCost - b.shoppingCost);
+  options.sort(comparePlanOptions);
   return { requestId, options: options.slice(0, 3), meta: { mode, isSample: catalog.isSample, stores: catalog.stores, products, missingNutrition, warnings } };
 }

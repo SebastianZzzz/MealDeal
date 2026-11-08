@@ -47,7 +47,14 @@ indexed by option ID. Invalid JSON/fields return 400; unavailable catalog or
 configuration 503; provider failure 502; no feasible complete plan 422.
 
 Set server-only `GEMINI_API_KEY` to enable structured Gemini generation.
-`GEMINI_MODEL` defaults to `gemini-2.5-flash` and can be changed without code edits.
+`GEMINI_PLAN_MODELS` defaults to `gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash`.
+The two Lite models are always tried before Flash unless an explicit ordered list
+overrides the defaults. This replaces the former single-model `GEMINI_MODEL` setting.
+Remove the old variable when updating local/Vercel configuration.
+HTTP 404/429/500/503 and transport failures advance to the next model. Other HTTP
+errors stop immediately. Corrective recipe retries skip models already known to
+be unavailable and share a 50-second generation deadline, with at most 20 seconds
+per model call. Exhausted chains are not repeated. Provider bodies are never returned.
 Reference: https://ai.google.dev/api/generate-content and
 https://googleapis.github.io/js-genai/release_docs/interfaces/types.GenerateContentConfig.html
 Provider failures do not silently switch to demo recipes. With no key and demo
@@ -104,6 +111,10 @@ labels/certification; richer product metadata is a later catalog improvement.
   package counts up. Shopping totals are compared to the whole-plan budget.
 - Cost per serving divides plan recipe cost by people × requested meal slots,
   including when multiple dishes share one slot. Leftovers use all bought packs.
+- Rank affordable options before over-budget ones, then by number of distinct
+  shopping stores, then checkout cost. The prompt also asks for a complete
+  one-store option when possible. Cards show store counts and label a recommended
+  one-store plan accurately rather than claiming it has the lowest checkout cost.
 - Sum only database-backed nutrition. Omit totals if nothing is matched; disclose
   missing foods for partial totals. Pantry foods can also contribute nutrients.
 - Reject invalid/over-budget options, with one corrective Gemini retry. Return
@@ -123,6 +134,29 @@ and load the catalog from a different working directory. The test runner resolve
 Next.js's @/* alias and rewrites B's relative .ts imports when compiling tests.
 The planning test loader uses Node 22.15 or later, matching the CI Node 22 setup.
 `npm run test:catalog` runs B's price-normalization checks unchanged.
+The request form tells users planning usually takes about 15 seconds and may
+take longer while the service is busy. Fallback tests verify all four specified
+HTTP statuses, terminal errors, shared deadlines and avoiding repeated quota failures.
+
+## Lite recipe quality check
+
+Live `gemini-3.5-flash-lite` checks covered a two-person dinner, soy/peanut-free
+vegetarian planning with pantry rice, and a three-day batch plan. All three
+returned complete, cost-validated options. Final sampled requests took about
+3–6 seconds, including corrective retries; the UI still allows about 15 seconds.
+
+The first review found starch-only vegetarian dishes and quick-fried pork
+shoulder. Prompt guidance now explicitly asks for a suitable protein ingredient,
+allows dairy for vegetarian profiles, matches cuts to cooking time, and includes
+Health Canada's meat-temperature guidance. The second review improved those
+cases, but meal variety and dairy/ingredient-variant choices remain weak. Lite
+is useful for basic demo recipes, not reliably validated balanced meal advice.
+No protein or calorie adequacy is inferred without database-backed nutrition.
+
+An unrelated plan summary was also observed; single-recipe option titles now
+come from the actual recipe title. This deterministic fix has a regression test.
+Remaining qualitative issues are disclosed rather than causing extra Flash calls;
+Flash remains the last fallback only for unavailable Lite models.
 
 ## P1 deal integration
 

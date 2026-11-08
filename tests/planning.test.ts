@@ -16,6 +16,8 @@ import { loadCatalog, type Catalog } from "../src/features/planning/catalog";
 import { POST as confirmProductReport } from "../src/app/api/products/route";
 import { isExpired } from "../src/features/catalog/index";
 import { tmpdir } from "node:os";
+import { generateWithGemini, planningModels, PlanningModelError } from "../src/features/planning/gemini";
+import { comparePlanOptions, storeCount } from "../src/features/planning/rank-options";
 
 const request: PlanRequest = { budget: 10, servings: 2, duration: "one_meal", batchCook: false, cuisines: [], meatVeg: "balanced" };
 const product: Product = { id: "rice", storeId: "near", name: "Rice", packageSizeG: 500, packagePrice: 2.5, packageUnit: "g", pricePer100: 999, isSale: true, source: "flyer", confidence: 1, reportedAt: "2026-11-07" };
@@ -47,6 +49,13 @@ test("whole-package shopping cost controls the budget", () => {
   assert.equal(result.recipeCost, 0.01);
   assert.equal(result.shoppingCost, 2.5);
   assert.equal(result.withinBudget, false);
+});
+
+test("single-dish options use the recipe title instead of an unrelated summary", () => {
+  const plan = draft();
+  plan.title = "Apple dinner";
+  const option = calculateOption(plan, request, [product], [], [], "p").option;
+  assert.equal(option.title, "Rice");
 });
 
 test("exact package boundaries and budget equality are handled", () => {
@@ -146,18 +155,20 @@ function modelDraft(qtyG = 100): DraftOption {
   return plan;
 }
 
-async function withGeminiMock(run: () => Promise<void>, respond: (call: number, init?: RequestInit) => Response) {
+async function withGeminiMock(run: () => Promise<void>, respond: (call: number, init?: RequestInit, url?: string) => Response) {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.GEMINI_API_KEY;
   const previousDemo = process.env.NEXT_PUBLIC_DEMO_MODE;
   const previousOrigin = process.env.APP_BASE_URL;
+  const previousModels = process.env.GEMINI_PLAN_MODELS;
   delete process.env.APP_BASE_URL;
+  delete process.env.GEMINI_PLAN_MODELS;
   process.env.GEMINI_API_KEY = "test-placeholder-never-sent";
   process.env.NEXT_PUBLIC_DEMO_MODE = "1";
   let calls = 0;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
     calls++;
-    return respond(calls, init);
+    return respond(calls, init, String(url));
   };
   try {
     await run();
@@ -177,6 +188,11 @@ async function withGeminiMock(run: () => Promise<void>, respond: (call: number, 
       delete process.env.APP_BASE_URL;
     } else {
       process.env.APP_BASE_URL = previousOrigin;
+    }
+    if (previousModels === undefined) {
+      delete process.env.GEMINI_PLAN_MODELS;
+    } else {
+      process.env.GEMINI_PLAN_MODELS = previousModels;
     }
   }
 }
@@ -232,8 +248,125 @@ test("duplicate options are not presented as distinct and valid options survive 
 
 test("provider failures are surfaced instead of silently fabricating demo recipes", async () => {
   await withGeminiMock(async () => {
-    await assert.rejects(generatePlan(input, fixtureCatalog), /could not return valid plans/);
+    await assert.rejects(generatePlan(input, fixtureCatalog), /unavailable right now/);
   }, () => new Response("Provider failed", { status: 503 }));
+});
+
+test("planning defaults to Lite models and supports a deduplicated explicit list", async () => {
+  await withGeminiMock(async () => {
+    assert.deepEqual(planningModels(), ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"]);
+    process.env.GEMINI_PLAN_MODELS = "gemini-3.1-flash-lite, gemini-3.1-flash-lite, gemini-3.5-flash";
+    assert.deepEqual(planningModels(), ["gemini-3.1-flash-lite", "gemini-3.5-flash"]);
+    process.env.GEMINI_PLAN_MODELS = "invalid/model";
+    assert.throws(planningModels, PlanningModelError);
+  }, () => { throw new Error("No provider call expected."); });
+});
+
+for (const status of [404, 429, 500, 503]) {
+  test(`moves to the second Lite model on HTTP ${status}`, async () => {
+    const models: string[] = [];
+    await withGeminiMock(async () => {
+      const result = await generatePlan(input, fixtureCatalog);
+      assert.equal(result.options.length, 2);
+      assert.deepEqual(models, ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]);
+    }, (call, _init, url) => {
+      models.push(new URL(url!).pathname.split("/").pop()!.replace(":generateContent", ""));
+      return call === 1 ? new Response("Unavailable", { status }) : geminiResponse([modelDraft(), modelDraft(120)]);
+    });
+  });
+}
+
+test("uses Flash only after both Lite models fail", async () => {
+  const models: string[] = [];
+  await withGeminiMock(async () => {
+    const result = await generatePlan(input, fixtureCatalog);
+    assert.equal(result.options.length, 2);
+    assert.deepEqual(models, ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"]);
+  }, (call, _init, url) => {
+    models.push(new URL(url!).pathname.split("/").pop()!.replace(":generateContent", ""));
+    return call < 3 ? new Response("Unavailable", { status: 429 }) : geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+test("moves to the next Lite model after a transport failure", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    const result = await generatePlan(input, fixtureCatalog);
+    assert.equal(result.options.length, 2);
+    assert.equal(calls, 2);
+  }, (call) => {
+    calls = call;
+    if (call === 1) {
+      throw new TypeError("Network unavailable");
+    }
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+for (const status of [400, 401, 403]) {
+  test(`does not spend another model request on HTTP ${status}`, async () => {
+    let calls = 0;
+    await withGeminiMock(async () => {
+      await assert.rejects(generatePlan(input, fixtureCatalog), /unavailable right now/);
+      assert.equal(calls, 1);
+    }, (call) => {
+      calls = call;
+      return new Response("Rejected", { status });
+    });
+  });
+}
+
+test("does not restart an exhausted fallback chain", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    await assert.rejects(generatePlan(input, fixtureCatalog), /unavailable right now/);
+    assert.equal(calls, 3);
+  }, (call) => {
+    calls = call;
+    return new Response("Quota exceeded", { status: 429 });
+  });
+});
+
+test("corrective retry skips models already known to be unavailable", async () => {
+  const models: string[] = [];
+  await withGeminiMock(async () => {
+    const result = await generatePlan(input, fixtureCatalog);
+    assert.equal(result.options.length, 2);
+    assert.deepEqual(models, ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite"]);
+  }, (call, _init, url) => {
+    models.push(new URL(url!).pathname.split("/").pop()!.replace(":generateContent", ""));
+    if (call === 1) {
+      return new Response("Quota exceeded", { status: 429 });
+    }
+    if (call === 2) {
+      const invalid = modelDraft();
+      invalid.recipes[0].ingredients[0].productId = "unknown";
+      return geminiResponse([invalid]);
+    }
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+test("stops before requesting a model when the shared deadline has passed", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    await assert.rejects(generateWithGemini(input.request, input.profile, [], fixtureCatalog.products, undefined,
+      { deadline: 0, unavailableModels: new Set() }), PlanningModelError);
+    assert.equal(calls, 0);
+  }, () => {
+    calls++;
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+test("prefers fewer store stops while retaining budget and price ordering", () => {
+  const base = calculateOption(draft(), request, [product], [], [], "one-store").option;
+  const sameStore = { ...base, shoppingCost: 8, shoppingList: [...base.shoppingList, { ...base.shoppingList[0], productId: "second" }] };
+  const twoStores = { ...base, id: "two-store", shoppingCost: 5, shoppingList: [...base.shoppingList, { ...base.shoppingList[0], productId: "second", storeId: "other" }] };
+  const cheaperOneStore = { ...base, id: "cheap-one-store", shoppingCost: 6 };
+  assert.equal(storeCount(sameStore), 1);
+  assert.deepEqual([twoStores, sameStore, cheaperOneStore].sort(comparePlanOptions).map((option) => option.id), ["cheap-one-store", "one-store", "two-store"]);
+  assert.ok(comparePlanOptions(twoStores, { ...sameStore, shoppingCost: 20, withinBudget: false }) < 0);
 });
 
 test("matches the rice, chicken and broccoli acceptance example", () => {

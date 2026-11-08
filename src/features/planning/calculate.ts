@@ -138,7 +138,7 @@ export function calculateOption(draft: DraftOption, request: PlanRequest, produc
   const shoppingCost = money(shoppingList.reduce((total, item) => total + item.lineTotal, 0));
   return {
     option: {
-      id, title: draft.title, recipes, shoppingList, recipeCost, shoppingCost,
+      id, title: recipes.length === 1 ? recipes[0].title : draft.title, recipes, shoppingList, recipeCost, shoppingCost,
       // Multiple dishes at the same meal do not create additional person-meals.
       costPerServing: money(recipeCost / (request.servings * getMealSlots(request).length)),
       leftovers, withinBudget: Math.round(shoppingCost * 100) <= Math.round(request.budget * 100),
