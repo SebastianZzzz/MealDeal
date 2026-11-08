@@ -1,89 +1,122 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+import { MapPin, Plus } from "lucide-react";
 import type { SurplusListing } from "@/types";
-import { notifySurplusChanged, SURPLUS_CHANGED } from "./browser-store";
+import { notifySurplusChanged } from "./browser-store";
 import { makeSurplusClient, type InventorySource } from "./client";
-import { distanceKm, SURPLUS_KEY } from "./inventory";
-import styles from "../community.module.css";
-import { ScreenHeader } from "@/components/screen-header";
-import { DishArt } from "./dish-art";
-
-const money = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
-const pickup = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Vancouver", timeZoneName: "short" }).format(new Date(value));
+import { MealDetail } from "./meal-detail";
+import { MealCard } from "./meal-card";
+import { useInventory } from "./use-inventory";
+import { SurplusFeedback, type Feedback } from "./feedback";
+import { sortedListings } from "./presentation";
+import styles from "./surplus.module.css";
 
 export function SurplusView({ source = "local" }: { source?: InventorySource }) {
-  const [items, setItems] = useState<SurplusListing[]>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
+  const { items, setItems, ready, loadError, now, refresh } = useInventory(source);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [sort, setSort] = useState("price");
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
-  const [now, setNow] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const next = await makeSurplusClient(source).list();
-        if (active) { setItems(next); setReady(true); setNow(Date.now()); }
-      } catch (cause) { if (active) { setError(cause instanceof Error ? cause.message : "Listings could not be loaded."); setReady(true); } }
-    };
-    void load();
-    const storage = (event: StorageEvent) => { if (event.key === SURPLUS_KEY || event.key === null) void load(); };
-    const refresh = () => { void load(); };
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    window.addEventListener("storage", storage);
-    window.addEventListener(SURPLUS_CHANGED, refresh);
-    return () => { active = false; window.clearInterval(tick); window.removeEventListener("storage", storage); window.removeEventListener(SURPLUS_CHANGED, refresh); };
-  }, [source]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const availabilityFilter = useRef<HTMLButtonElement>(null);
 
   async function reserve(item: SurplusListing) {
-    setBusy(item.id); setError(""); setMessage("");
+    setBusy(true);
+    setFeedback({ tone: "progress", content: "Reserving one portion…" });
     try {
-      const inventory = makeSurplusClient(source);
-      const result = await inventory.reserve(item.id, Date.now);
-      // Report a confirmed reservation even if refreshing the list later fails.
+      const result = await makeSurplusClient(source).reserve(item.id, Date.now);
       if (result.ok) {
         setItems((current) => current.map((entry) => entry.id === item.id ? result.listing : entry));
-        setMessage(`${result.listing.isSample ? "Sample reservation" : "Reservation"} recorded for ${item.title}. ${result.listing.qtyLeft} left.${result.listing.isSample ? " This is a simulation; no real food has been held." : " Pay at pickup; there is no online payment."}`);
+        setFeedback({ tone: "success", content: <>{result.listing.isSample ? "Sample reservation" : "Reservation"} recorded for <strong>{result.listing.title}</strong>. <strong>{result.listing.qtyLeft} left.</strong></> });
+      } else {
+        const content = result.reason === "sold_out" ? "The last portion was just reserved. Choose another meal."
+          : result.reason === "expired" ? "Pickup has ended. Choose another meal." : "This meal is no longer available. Choose another meal.";
+        setFeedback({ tone: "error", content });
       }
-      else setError(result.reason === "sold_out" ? "The last portion was just reserved. Please choose another listing." : result.reason === "expired" ? "This pickup window has ended." : "This listing is no longer available.");
-      if (source === "local") notifySurplusChanged();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not reserve this listing. Nothing was confirmed."); }
-    finally { setBusy(null); }
+      if (source === "local") {
+        notifySurplusChanged();
+      }
+    } catch (cause) {
+      setFeedback({ tone: "error", content: cause instanceof Error ? cause.message : "Could not reserve. Nothing was confirmed. Try again." });
+    } finally {
+      setBusy(false);
+      refresh();
+    }
   }
 
   function locate() {
-    setError("");
-    if (!navigator.geolocation) { setError("Location is unavailable. You can still browse by price."); return; }
+    if (!navigator.geolocation) {
+      setFeedback({ tone: "error", content: "Location is unavailable. Browse by price instead." });
+      return;
+    }
+    setLocating(true);
+    setFeedback({ tone: "progress", content: "Finding you…" });
     navigator.geolocation.getCurrentPosition((position) => {
-      setOrigin({ lat: position.coords.latitude, lng: position.coords.longitude }); setSort("distance");
-    }, () => setError("Location could not be obtained. You can still browse by price."), { timeout: 10000, maximumAge: 60000 });
+      setOrigin({ lat: position.coords.latitude, lng: position.coords.longitude });
+      setSort("distance"); setLocating(false);
+      setFeedback({ tone: "success", content: <>Location found. Showing <strong>nearest meals</strong>.</> });
+    }, () => {
+      setLocating(false);
+      setFeedback({ tone: "error", content: "Location could not be obtained. Browse by price or allow location and retry." });
+    }, { timeout: 10000, maximumAge: 60000 });
   }
 
-  const sorted = [...items].sort((a, b) => sort === "distance" && origin ? distanceKm(origin, a) - distanceKm(origin, b) : a.price - b.price);
-  return <main className={styles.page}>
-    <ScreenHeader backHref="/" />
-    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / SURPLUS FOOD</p><h1>Surplus meals</h1><p>Browse end-of-day meals and save a portion for pickup.</p></header>
-    <aside className={styles.notice}><strong>{source === "local" ? "Local demo — no real reservations." : "Shared inventory preview"}</strong><p>{source === "local" ? "Sample merchants and any listings you post are stored only in this browser. Reservations are simulated across its tabs. There is no payment or real merchant fulfilment." : "Listings are read from the shared service. Entries labeled sample data do not represent real merchants or food holds. Sign in to post or reserve."}</p><Link href={source === "local" ? "/eat-out/shared" : "/eat-out"}>{source === "local" ? "Open shared inventory preview →" : "Use the local demo →"}</Link></aside>
-    <div className={styles.toolbar}><label className={styles.field}>Sort by<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></label><button className={styles.secondary} onClick={locate}>Use my location</button><Link className={styles.primary} href={source === "local" ? "/eat-out/post" : "/eat-out/shared/post"}>Post a sample listing</Link></div>
-    {error && <p role="alert" className={styles.error}>{error}</p>}{message && <p role="status" className={styles.success}>{message}</p>}
-    {!ready && <p role="status">Loading surplus listings…</p>}
-    <div className={styles.cards}>{sorted.map((item) => {
-      const expired = Date.parse(item.pickupEnd) <= now;
-      return <article key={item.id} className={styles.card}>
-        <DishArt id={item.id} title={item.title} />
-        {item.isSample && <span className={styles.tag}>SAMPLE DATA</span>}<span className={styles.tag}>{expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : `${item.qtyLeft} left`}</span>
-        <h2>{item.title}</h2><p className={styles.address}>{item.merchantName}<br />{item.address}{origin && <><br />{distanceKm(origin, item).toFixed(1)} km away · straight-line estimate</>}</p>
-        <dl><dt>Pickup window · Vancouver time</dt><dd>{pickup(item.pickupStart)} – {pickup(item.pickupEnd)}</dd><dt>Allergen information</dt><dd>{item.allergens.length ? item.allergens.join(", ") : "No allergens declared; this does not mean allergen-free."} Confirm ingredients and cross-contact with the merchant.</dd></dl>
-        {item.description && <p className={styles.small}>{item.description}</p>}
-        <div className={styles.row}><div><span className={styles.price}>{money(item.price)}</span><span className={styles.original}>{money(item.origPrice)}</span></div><button className={styles.primary} disabled={expired || item.qtyLeft === 0 || busy !== null} onClick={() => void reserve(item)}>{busy === item.id ? "Reserving…" : expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : item.isSample ? "Reserve one · sample" : "Reserve one"}</button></div>
-      </article>;
-    })}</div>
-    {ready && items.length === 0 && !error && <section className={styles.empty}><h2>No listings yet.</h2><p>Post a sample listing to try the flow.</p></section>}
-    <footer className={styles.footer}><Link href="/cook/plan">Cook at home</Link><Link href="/cook/demo">Try the cooking demo</Link><Link href="/support">Find food support</Link></footer>
+  function closeDetail() {
+    setSelectedId(null);
+    // Native dialogs contain focus; restore it even if a sold-out card has moved in the list.
+    window.requestAnimationFrame(() => {
+      const target = trigger.current?.isConnected ? trigger.current : availabilityFilter.current;
+      target?.focus();
+    });
+  }
+
+  function openDetail(item: SurplusListing, button: HTMLButtonElement) {
+    trigger.current = button;
+    setSelectedId(item.id);
+    setFeedback(null);
+  }
+
+  const selected = items.find((item) => item.id === selectedId);
+  const sorted = sortedListings(items, now, onlyAvailable, sort === "distance" ? origin : null);
+  // A later refresh failure must not erase a confirmed reservation.
+  const status: Feedback | null = loadError && feedback?.tone === "success"
+    ? { tone: "success", content: <>{feedback.content} <span className={styles.error}>Refresh failed. Try again.</span></> }
+    : loadError ? { tone: "error", content: loadError } : feedback;
+
+  return <main className={`page ${styles.page}`}>
+    <header className={styles.hero}><p className="planning-eyebrow">Eat out</p><h1>Surplus meals</h1><p>Good food, less waste.</p></header>
+    <nav className={styles.viewSwitch} aria-label="Inventory source">
+      <Link href="/eat-out" aria-current={source === "local" ? "page" : undefined}>Local demo</Link>
+      <Link href="/eat-out/shared" aria-current={source === "shared" ? "page" : undefined}>Shared preview</Link>
+    </nav>
+    <aside className="planning-notice"><strong>{source === "local" ? "Sample meals. No real reservations." : "Shared preview. Sign in to reserve."}</strong><br />
+      {source === "local" ? "Browser-only. No food or payment arranged." : "Sample labels mean fictional food. No online payment."}
+    </aside>
+    <div className={styles.tools}>
+      <button type="button" className="btn" disabled={locating} onClick={locate}><MapPin size={18} aria-hidden="true" />{locating ? "Finding you…" : "Use my location"}</button>
+      <Link className="btn" href={source === "local" ? "/eat-out/post" : "/eat-out/shared/post"}><Plus size={18} aria-hidden="true" />Post a meal</Link>
+    </div>
+    <div className={styles.filterRow}>
+      <div className={`field ${styles.sort}`}><label htmlFor="meal-sort">Sort meals</label><select id="meal-sort" value={sort} onChange={(event) => {
+        setSort(event.target.value);
+        setFeedback({ tone: "success", content: <>Sorted by <strong>{event.target.value === "price" ? "lowest price" : "distance"}</strong>.</> });
+      }}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></div>
+      <button ref={availabilityFilter} type="button" className="chip" aria-pressed={onlyAvailable} onClick={() => {
+        setOnlyAvailable(!onlyAvailable);
+        setFeedback({ tone: "success", content: <>Showing <strong>{onlyAvailable ? "all meals" : "available meals"}</strong>.</> });
+      }}>Available only</button>
+    </div>
+    <SurplusFeedback feedback={selected ? null : !ready ? { tone: "progress", content: "Loading meals…" } : status} />
+    {loadError && <button type="button" className="btn" onClick={() => { setFeedback({ tone: "progress", content: "Loading meals…" }); refresh(); }}>Try again</button>}
+    <div className={styles.cards} aria-busy={!ready}>{sorted.map((item) => <MealCard key={item.id} item={item} now={now} origin={origin} onOpen={openDetail} />)}</div>
+    {ready && sorted.length === 0 && !loadError && <section className={styles.empty}><h2>No meals available.</h2><p>{items.length ? "Turn off Available only to see ended and sold-out meals." : "Post a sample meal to try the flow."}</p></section>}
+    <footer className={styles.footer}><Link className="btn text" href="/cook/plan">Cook at home</Link><Link className="btn text" href="/support">Find food support</Link></footer>
+    {selected && <MealDetail item={selected} now={now} busy={busy} feedback={status} onClose={closeDetail}
+      onRetry={loadError ? refresh : undefined} onReserve={() => void reserve(selected)} />}
   </main>;
 }

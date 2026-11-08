@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInventory, distanceKm, SURPLUS_KEY, validDraft } from "./inventory.ts";
+import { buildSampleDraft, PICKUP_DELAYS, PICKUP_DURATIONS } from "./sample-draft.ts";
+import { availability, available, sortedListings } from "./presentation.ts";
 
 const now = Date.parse("2026-11-07T23:00:00Z");
 const fixture = () => ({
@@ -84,4 +86,57 @@ test("distance sorting uses a finite straight-line distance", () => {
   assert.equal(distanceKm({ lat: 49, lng: -123 }, { lat: 49, lng: -123 }), 0);
   const nearby = distanceKm({ lat: 49.266, lng: -123.243 }, { lat: 49.267, lng: -123.244 });
   assert.ok(nearby > 0 && nearby < 1);
+});
+
+test("sample composer preserves meal facts and calculates every pickup window at publish time", () => {
+  const meal = fixture();
+  for (const delay of PICKUP_DELAYS) {
+    for (const duration of PICKUP_DURATIONS) {
+      const publishedAt = now + 3 * 86400000;
+      const draft = buildSampleDraft(meal, { price: 2.99, origPrice: 10, qtyLeft: 2, delay, duration }, publishedAt);
+      assert.equal(Date.parse(draft.pickupStart), publishedAt + delay * 60000);
+      assert.equal(Date.parse(draft.pickupEnd) - Date.parse(draft.pickupStart), duration * 60000);
+      assert.equal(validDraft(draft), true);
+      assert.equal(draft.address, meal.address);
+      assert.equal(draft.lat, meal.lat);
+      assert.deepEqual(draft.allergens, meal.allergens);
+      assert.equal(draft.price, 2.99);
+      assert.equal("id" in draft, false);
+      assert.equal("isSample" in draft, false);
+    }
+  }
+});
+
+test("relative pickup durations remain exact across Vancouver daylight-saving changes", () => {
+  const publishedAt = Date.parse("2026-11-01T08:45:00Z");
+  const draft = buildSampleDraft(fixture(), { price: 3, origPrice: 10, qtyLeft: 1, delay: 30, duration: 120 }, publishedAt);
+  assert.equal(draft.pickupStart, "2026-11-01T09:15:00.000Z");
+  assert.equal(draft.pickupEnd, "2026-11-01T11:15:00.000Z");
+});
+
+test("sample composer rejects unsupported time choices and invalid price or quantity", () => {
+  const choices = { price: 3, origPrice: 10, qtyLeft: 1, delay: 30, duration: 60 };
+  for (const invalid of [{ delay: -30 }, { delay: 15 }, { duration: 0 }, { duration: 90 }, { price: 11 }, { price: 1.234 }, { qtyLeft: 0 }, { qtyLeft: 1.5 }]) {
+    assert.throws(() => buildSampleDraft(fixture(), { ...choices, ...invalid }, now));
+  }
+});
+
+test("availability expires at the boundary and filtering never mutates inventory", () => {
+  const active = fixture();
+  const soldOut = { ...active, id: "sold-out", qtyLeft: 0, price: 0 };
+  const expired = { ...active, id: "expired", pickupEnd: new Date(now).toISOString(), price: 0 };
+  assert.equal(available(expired, now), false);
+  assert.equal(availability(expired, now), "Pickup ended");
+  assert.equal(availability(soldOut, now), "Sold out");
+  const items = [expired, soldOut, active];
+  assert.deepEqual(sortedListings(items, now, true, null).map((item) => item.id), [active.id]);
+  assert.equal(sortedListings(items, now, false, null)[0].id, active.id);
+  assert.deepEqual(items, [expired, soldOut, active]);
+});
+
+test("meal order switches between price and actual straight-line distance", () => {
+  const near = { ...fixture(), id: "near", price: 5 };
+  const cheap = { ...fixture(), id: "cheap", lat: 49.3, price: 1 };
+  assert.equal(sortedListings([near, cheap], now, true, null)[0].id, "cheap");
+  assert.equal(sortedListings([cheap, near], now, true, { lat: near.lat, lng: near.lng })[0].id, "near");
 });

@@ -5,7 +5,7 @@ in the same PR so it stays the single source of truth.
 
 - **Tokens and shared classes:** `src/app/globals.css`
 - **Shared components:** `src/components/` (`top-bar.tsx`, `range-field.tsx`, `brand.tsx`)
-- **Community screens** (Food support, Eat out): `src/features/community.module.css`. It uses the same tokens.
+- **Community screens:** Food support uses `src/features/community.module.css`; Eat out uses `src/features/surplus/surplus.module.css`. Both use the same tokens and shared controls.
 - **Cooking mode:** `src/features/cooking/cooking.module.css`. It uses the same fonts and tokens.
 
 Mobile first: design at **390 × 844**. The app column is at most **440px** wide and centred on larger screens.
@@ -175,6 +175,16 @@ Only for long or ordered lists (units, days, meals a day, meal balance). The cus
 ### Photos and illustrations
 - Photos: JPEG, about 760px wide, under 150 KB. Put them in `public/images/`.
 - Dishes without a photo use the drawn tiles in `src/features/surplus/dish-art.tsx`. Don't use stock photos of real brands.
+
+### Eat out
+
+- `/eat-out` and `/eat-out/shared` share the same layout. A pill view switch distinguishes the local demo from the shared preview; each explains its storage and sample limitations.
+- Meal cards show artwork, sample/availability labels, merchant, Vancouver pickup window and CAD prices. Available meals lead the list; the Available only chip hides ended and sold-out meals. Location is requested only after tapping Use my location.
+- View meal opens a native modal bottom sheet with the address, allergens, description and the screen's sole primary action, Reserve one. Escape and Close dismiss it. Focus returns to the meal button or the availability filter if that card has disappeared.
+- Publishing is a **sample composer**, not merchant onboarding. Choose one of the existing eight fictional meals; its merchant, address, coordinates and allergen declarations stay together. No new sample catalogue or required text input is introduced. The API continues to accept validated listing drafts.
+- Prices and portions use `RangeField` with minus/plus buttons. Sample UI limits: original price CAD 1–50, surplus price CAD 0–original, portions 1–20. Lowering the original price also lowers the surplus price when needed.
+- Ordered pickup choices are relative to publishing (now / 30 / 60 / 120 minutes; open for 30 / 60 / 120 minutes). Resolve these in UTC on submit, then display them in Vancouver time.
+- A full-width fixed bottom bar contains the publishing status, Cancel and Publish sample. Choices stay in place after errors. Success uses green with the meal or changed value in bold; errors use bold danger text.
 
 ---
 

@@ -5,6 +5,16 @@
 - `/eat-out` browses listings by price or straight-line distance after an explicit
   user request for location. Denied location leaves price browsing available.
 - `/eat-out/post` publishes a sample listing without merchant sign-in.
+- Both local and shared screens follow `docs/DESIGN.md`: concise meal cards,
+  an accessible native detail sheet, one primary reservation action, and reserved
+  status feedback. Available-only filtering excludes sold-out and expired meals.
+- The sample composer selects from the existing fictional meals, keeping merchant,
+  address, coordinates and allergen facts together. Prices and portions use shared
+  sliders with minus/plus controls; pickup choices are resolved at publishing time,
+  avoiding expired windows when a form has been open for a long time.
+- The original price ranges from CAD 1–50, surplus price from zero to the original
+  price, and portions from 1–20 in this sample UI. Backend validation is unchanged.
+  The fixed bottom bar keeps Publish sample and its feedback visible while scrolling.
 - `mock/surplus-listings.json` contains eight fictional merchants. Their initial
   pickup windows are derived from first initialization and then persisted.
 - The shared `SurplusListing` type is imported from `@/types` unchanged.
