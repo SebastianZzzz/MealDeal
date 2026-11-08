@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { apiError, validationError } from "@/lib/api-error";
 import { DEMO_CENTER, findNearbyStores } from "@/features/catalog/nearby";
 
 const querySchema = z.object({
@@ -12,8 +13,14 @@ const querySchema = z.object({
 export async function GET(request: Request) {
   const params = Object.fromEntries(new URL(request.url).searchParams);
   const parsed = querySchema.safeParse(params);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) return validationError(parsed.error, "Location must be a valid latitude, longitude and distance.");
   const { lat, lng, km } = parsed.data;
-  const result = await findNearbyStores({ lat, lng }, km);
+  let result;
+  try {
+    result = await findNearbyStores({ lat, lng }, km);
+  } catch (error) {
+    console.error("GET /api/stores failed", error instanceof Error ? error.message : error);
+    return apiError("DATABASE_UNAVAILABLE", "Stores can't be loaded right now. Try again shortly.");
+  }
   return NextResponse.json({ ...result, attribution: "Store data © OpenStreetMap contributors" });
 }

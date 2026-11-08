@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { PriceTagResult } from "@/types";
 import { ExtractionError, extractPriceTag, type ExtractedItem } from "@/features/catalog/extract";
+import { apiError, validationError } from "@/lib/api-error";
 import { DEMO_CENTER, findNearbyStores } from "@/features/catalog/nearby";
 import type { NearbyStore } from "@/features/catalog/stores";
 
@@ -22,10 +23,12 @@ export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
   const image = form?.get("image");
   if (!(image instanceof File) || !image.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Attach a photo of a price tag." }, { status: 400 });
+    return apiError("VALIDATION_FAILED", "Attach a photo of a price tag.", { image: "Required" });
   }
-  if (image.size > MAX_BYTES) return NextResponse.json({ error: "Photo is too large." }, { status: 413 });
-  const location = locationSchema.parse({ lat: form?.get("lat") ?? undefined, lng: form?.get("lng") ?? undefined });
+  if (image.size > MAX_BYTES) return apiError("PAYLOAD_TOO_LARGE", "That photo is too large. Try again; the page shrinks photos automatically.");
+  const parsedLocation = locationSchema.safeParse({ lat: form?.get("lat") ?? undefined, lng: form?.get("lng") ?? undefined });
+  if (!parsedLocation.success) return validationError(parsedLocation.error, "Your location looks invalid.");
+  const location = parsedLocation.data;
 
   try {
     const [items, nearby] = await Promise.all([
@@ -33,7 +36,7 @@ export async function POST(request: Request) {
       findNearbyStores(location, 5),
     ]);
     if (items.length === 0) {
-      return NextResponse.json({ error: "No price tag found in this photo. Try again closer, or enter it manually." }, { status: 422 });
+      return apiError("UNPROCESSABLE", "No price tag found in this photo. Try again closer, or enter it manually.");
     }
     const body: PriceTagResponse = {
       items,
@@ -43,7 +46,10 @@ export async function POST(request: Request) {
     };
     return NextResponse.json(body);
   } catch (error) {
-    if (error instanceof ExtractionError) return NextResponse.json({ error: error.message }, { status: error.status });
-    return NextResponse.json({ error: "Something went wrong while reading the photo." }, { status: 500 });
+    if (error instanceof ExtractionError) {
+      return apiError(error.status === 503 ? "SERVICE_UNAVAILABLE" : "UPSTREAM_FAILED", error.message);
+    }
+    console.error("POST /api/extract/price-tag failed", error instanceof Error ? error.message : error);
+    return apiError("INTERNAL", "Something went wrong while reading the photo.");
   }
 }
