@@ -12,33 +12,46 @@ npm run dev
 
 The default environment enables demo mode, so onboarding works with browser storage before any cloud account is configured.
 
-## Cooking demo (D)
+## Cooking and community features (D)
 
-Open `http://localhost:3000/cook/demo` after starting the app, or choose **Try the
-cooking demo** on the home page in demo mode. The sample recipes support step
-progression, independent timers, weight display conversion, and browser-local
-recovery after refresh. No live planning API is required.
+Open `/cook/cooking` for the selected plan saved by C at `mealdeal.currentPlan`.
+The route validates the plan, requires completed shopping, and writes only
+cooking progress/status back to the shared plan. Quantities and times are already
+scaled by C; D only converts grams to the saved weight display unit.
+
+`/cook/demo` remains an independent sample recipe demo with step progression,
+timers, and local recovery after refresh. D's pages link to it. A owns the home
+page and its entry points. Missing current plans link to planning and the demo.
+
+`/support` contains four curated Vancouver/UBC resources with official source
+links, verified dates, and a check-before-you-go notice. `/eat-out` and
+`/eat-out/post` provide a browser-local sample surplus posting/reservation flow.
+Web Locks serialize stock updates across cooperating tabs; shared database
+inventory will be added by A. All local merchants and reservations are examples.
 
 Run the timer/progress tests with Node.js 22.18 or newer:
 
 ```bash
-node --experimental-strip-types --test src/features/cooking/session.test.mjs
+node --experimental-strip-types --test src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
 ```
 
 If the local environment blocks Turbopack's internal port, build with
 `npm run build -- --webpack`. See `src/features/cooking/README.md` for C/A
 integration details and manual checks. Cloud progress saving is not yet connected.
 
-## Connect Auth0 and Supabase
+## Authentication and later persistence
 
 1. Create a Regular Web Application in Auth0. Set callback URL to `http://localhost:3000/auth/callback` and logout URL to `http://localhost:3000`.
 2. Fill the Auth0 variables in `.env.local`.
-3. Create a Supabase project and run the files in `supabase/migrations` in filename order.
-4. Add `SUPABASE_URL` and the server-only service role key to `.env.local`.
-5. Set `NEXT_PUBLIC_DEMO_MODE=0` before production deployment.
+3. Set `NEXT_PUBLIC_DEMO_MODE=0` when requiring real Auth0 sign-in.
 
-Auth0 owns identity. Next.js validates the encrypted Auth0 session and performs profile writes server-side. The Supabase service role key is never sent to the browser.
+Auth0 is the only identity provider. Use mock JSON and localStorage for the
+current development milestone. A owns the later Tiger Data integration via
+`src/lib/db.ts`; legacy database adapters in the initial scaffold are awaiting
+that migration. D adds no database service, image storage, or cloud credentials.
 
 ## Shared contracts
 
-Shared contracts live in `src/contracts`. Other feature branches should import these rather than defining duplicates. See `docs/ARCHITECTURE.md` and `CONTRIBUTING.md` before starting a feature branch.
+The shared contract is `src/types.ts`, imported via `@/types`. Do not edit it on
+feature branches. Older scaffold types in `src/contracts` are not the shared
+contract. See `CONTRIBUTING.md` for the team workflow.

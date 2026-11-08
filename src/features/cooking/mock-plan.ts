@@ -1,4 +1,4 @@
-import type { MealPlan } from "@/contracts/types";
+import type { MealPlan } from "@/types";
 
 /** C supplies final quantities and servings. The cooking UI never scales them again. */
 export const demoMealPlan: MealPlan = {

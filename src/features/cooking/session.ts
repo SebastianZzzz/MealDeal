@@ -1,4 +1,4 @@
-import type { MealPlan } from "../../contracts/types";
+import type { MealPlan } from "../../types";
 
 export interface StepTimer {
   remainingMs: number;

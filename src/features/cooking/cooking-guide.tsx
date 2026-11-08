@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
-import { GRAMS_PER, type MealPlan, type UnitPrefs, type WeightUnit } from "@/contracts/types";
+import { GRAMS_PER, type MealPlan, type UnitPrefs, type WeightUnit } from "@/types";
 import { createSession, formatTime, remainingMs, restoreSession, timerKey, updateSession, type CookingAction, type CookingSession } from "./session";
+import { saveCurrentProgress } from "./plan-storage";
 import styles from "./cooking.module.css";
 
 type ViewState = { session: CookingSession; ready: boolean; warning: string; units: UnitPrefs; now: number };
@@ -29,26 +30,27 @@ const defaultUnits: UnitPrefs = { lang: "en", weight: "g", volume: "ml", currenc
 
 function readUnits(): UnitPrefs {
   try {
-    const profile = JSON.parse(localStorage.getItem("mealdeal.profile") || "null");
-    const units = profile?.units;
-    if (units && Object.hasOwn(GRAMS_PER, units.weight)) return { ...defaultUnits, ...units };
+    const units: unknown = JSON.parse(localStorage.getItem("mealdeal.profile") || "null")?.units;
+    if (units && typeof units === "object" && "weight" in units && typeof units.weight === "string" && Object.hasOwn(GRAMS_PER, units.weight)) {
+      return { ...defaultUnits, weight: units.weight as WeightUnit };
+    }
   } catch { /* Use grams if the profile is unavailable or invalid. */ }
   return defaultUnits;
 }
 
 function quantity(grams: number, unit: WeightUnit) {
-  return `${new Intl.NumberFormat("en-CA", { maximumFractionDigits: unit === "g" ? 1 : 3 }).format(grams / GRAMS_PER[unit])} ${unit === "jin" ? "斤" : unit}`;
+  return `${new Intl.NumberFormat("en-CA", { maximumFractionDigits: unit === "g" ? 1 : 3 }).format(grams / GRAMS_PER[unit])} ${unit}`;
 }
 
 /** Accepts the final MealPlan from C. No network or recalculation is hidden here. */
-export function CookingGuide({ plan, isDemo = false, unitPrefs }: { plan: MealPlan; isDemo?: boolean; unitPrefs?: UnitPrefs }) {
+export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?: boolean }) {
   const [view, dispatch] = useReducer((state: ViewState, action: ViewAction): ViewState => {
     if (action.type === "hydrate") return { ready: true, session: action.session, warning: action.warning, units: action.units, now: action.now };
     if (action.type === "tick") return { ...state, now: action.now };
     if (action.type === "units") return { ...state, units: action.units };
     if (action.type === "saveError") return { ...state, warning: action.warning };
     return { ...state, session: updateSession(plan, state.session, action) };
-  }, { session: createSession(plan), ready: false, warning: "", units: unitPrefs ?? defaultUnits, now: 0 });
+  }, { session: createSession(plan), ready: false, warning: "", units: defaultUnits, now: 0 });
   const { units, now } = view;
   const [openRecipes, setOpenRecipes] = useState<Record<string, boolean>>({});
   const [openSteps, setOpenSteps] = useState<Record<string, number>>({});
@@ -60,14 +62,17 @@ export function CookingGuide({ plan, isDemo = false, unitPrefs }: { plan: MealPl
     let warning = "";
     try { session = restoreSession(plan, localStorage.getItem(storageKey)); }
     catch { warning = "Browser storage is unavailable. Keep this page open to retain your progress."; }
-    dispatch({ type: "hydrate", session, warning, units: unitPrefs ?? readUnits(), now: Date.now() });
-  }, [plan, storageKey, unitPrefs]);
+    dispatch({ type: "hydrate", session, warning, units: readUnits(), now: Date.now() });
+  }, [plan, storageKey]);
 
   useEffect(() => {
     if (!view.ready) return;
-    try { localStorage.setItem(storageKey, JSON.stringify(view.session)); }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(view.session));
+      if (!isDemo) saveCurrentProgress(localStorage, plan, view.session.progress);
+    }
     catch { dispatch({ type: "saveError", warning: "Your progress could not be saved. Keep this page open while cooking." }); }
-  }, [storageKey, view.ready, view.session]);
+  }, [isDemo, plan, storageKey, view.ready, view.session]);
 
   useEffect(() => {
     const tick = () => dispatch({ type: "tick", now: Date.now() });
@@ -127,7 +132,7 @@ export function CookingGuide({ plan, isDemo = false, unitPrefs }: { plan: MealPl
       }}><Icon name="clock" size={17} /><span>{recipe.title}</span><strong>{left === 0 ? "Time’s up" : formatTime(left)}</strong></button>)}
     </aside>}
 
-    <div className={styles.sectionHeading}><h2>On the menu</h2><label>Show weight in <select aria-label="Display weight unit" value={units.weight} onChange={(event) => dispatch({ type: "units", units: { ...units, weight: event.target.value as WeightUnit } })}>{Object.keys(GRAMS_PER).map((unit) => <option key={unit} value={unit}>{unit === "jin" ? "斤" : unit}</option>)}</select></label></div>
+    <div className={styles.sectionHeading}><h2>On the menu</h2><label>Show weight in <select aria-label="Display weight unit" value={units.weight} onChange={(event) => dispatch({ type: "units", units: { ...units, weight: event.target.value as WeightUnit } })}>{Object.keys(GRAMS_PER).map((unit) => <option key={unit} value={unit}>{unit === "jin" ? "jin (500 g)" : unit}</option>)}</select></label></div>
 
     <div className={styles.recipes}>
       {recipes.map((recipe, recipeIndex) => {
@@ -191,6 +196,7 @@ export function CookingGuide({ plan, isDemo = false, unitPrefs }: { plan: MealPl
     {allDone && <section className={styles.celebration} role="status"><span className={styles.finishMark}><Icon name="check" size={28} /></span><h2>Good food. Your own two hands.</h2><p>All {recipes.length} recipes are complete. Your progress is saved here.</p><Link href="/" className={styles.homeButton}>Back to MealDeal <span>→</span></Link></section>}
 
     <footer className={styles.footer}><Icon name="leaf" size={17} /><p>A little less stress. A little more homemade.</p><span>Timers are reminders. Check your food as you cook.</span></footer>
-    <Link className={styles.backLink} href="/cook"><Icon name="arrow" size={16} /> Back to Cook at Home</Link>
+    <Link className={styles.backLink} href={isDemo ? "/cook/cooking" : "/cook/shopping"}><Icon name="arrow" size={16} />{isDemo ? "Open your meal plan" : "Back to shopping list"}</Link>
+    <nav className={styles.featureLinks} aria-label="More ways to eat"><Link href={isDemo ? "/cook/plan" : "/cook/demo"}>{isDemo ? "Plan a meal" : "Try a sample recipe"}</Link><Link href="/support">Food support</Link><Link href="/eat-out">Eat out</Link></nav>
   </main>;
 }

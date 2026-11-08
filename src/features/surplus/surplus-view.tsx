@@ -1,0 +1,83 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { SurplusListing } from "@/types";
+import { makeBrowserInventory, notifySurplusChanged, SURPLUS_CHANGED } from "./browser-store";
+import { distanceKm, SURPLUS_KEY } from "./inventory";
+import styles from "../community.module.css";
+
+const money = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
+const pickup = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Vancouver", timeZoneName: "short" }).format(new Date(value));
+
+export function SurplusView() {
+  const [items, setItems] = useState<SurplusListing[]>([]);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sort, setSort] = useState("price");
+  const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const inventory = makeBrowserInventory();
+        const next = navigator.locks ? await inventory.initialize() : inventory.read();
+        if (active) { setItems(next); setReady(true); setNow(Date.now()); }
+      } catch (cause) { if (active) { setError(cause instanceof Error ? cause.message : "Listings could not be loaded."); setReady(true); } }
+    };
+    void load();
+    const storage = (event: StorageEvent) => { if (event.key === SURPLUS_KEY || event.key === null) void load(); };
+    const refresh = () => { void load(); };
+    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    window.addEventListener("storage", storage);
+    window.addEventListener(SURPLUS_CHANGED, refresh);
+    return () => { active = false; window.clearInterval(tick); window.removeEventListener("storage", storage); window.removeEventListener(SURPLUS_CHANGED, refresh); };
+  }, []);
+
+  async function reserve(item: SurplusListing) {
+    setBusy(item.id); setError(""); setMessage("");
+    try {
+      const inventory = makeBrowserInventory();
+      const result = await inventory.reserve(item.id, Date.now);
+      setItems(inventory.read());
+      if (result.ok) setMessage(`Demo reservation recorded for ${item.title}. ${result.listing.qtyLeft} left. This is a simulation; no real food has been held.`);
+      else setError(result.reason === "sold_out" ? "The last portion was just reserved. Please choose another listing." : result.reason === "expired" ? "This pickup window has ended." : "This listing is no longer available.");
+      notifySurplusChanged();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not reserve this listing. Nothing was confirmed."); }
+    finally { setBusy(null); }
+  }
+
+  function locate() {
+    setError("");
+    if (!navigator.geolocation) { setError("Location is unavailable. You can still browse by price."); return; }
+    navigator.geolocation.getCurrentPosition((position) => {
+      setOrigin({ lat: position.coords.latitude, lng: position.coords.longitude }); setSort("distance");
+    }, () => setError("Location could not be obtained. You can still browse by price."), { timeout: 10000, maximumAge: 60000 });
+  }
+
+  const sorted = [...items].sort((a, b) => sort === "distance" && origin ? distanceKm(origin, a) - distanceKm(origin, b) : a.price - b.price);
+  return <main className={styles.page}>
+    <nav className={styles.nav} aria-label="MealDeal navigation"><Link href="/">← MealDeal</Link><Link href="/support">Food support</Link></nav>
+    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / SURPLUS FOOD</p><h1>Good food.<br />A second chance.</h1><p>Browse end-of-day meals and save a portion for pickup.</p></header>
+    <aside className={styles.notice}><strong>Local demo — no real reservations.</strong><p>Sample merchants and any listings you post are stored only in this browser. Reservations are simulated across its tabs. There is no payment or real merchant fulfilment.</p></aside>
+    <div className={styles.toolbar}><label className={styles.field}>Sort by<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></label><button className={styles.secondary} onClick={locate}>Use my location</button><Link className={styles.primary} href="/eat-out/post">Post a sample listing</Link></div>
+    {error && <p role="alert" className={styles.error}>{error}</p>}{message && <p role="status" className={styles.success}>{message}</p>}
+    {!ready && <p role="status">Loading surplus listings…</p>}
+    <div className={styles.cards}>{sorted.map((item) => {
+      const expired = Date.parse(item.pickupEnd) <= now;
+      return <article key={item.id} className={styles.card}>
+        {item.isSample && <span className={styles.tag}>SAMPLE DATA</span>}<span className={styles.tag}>{expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : `${item.qtyLeft} left`}</span>
+        <h2>{item.title}</h2><p className={styles.address}>{item.merchantName}<br />{item.address}{origin && <><br />{distanceKm(origin, item).toFixed(1)} km away · straight-line estimate</>}</p>
+        <dl><dt>Pickup window · Vancouver time</dt><dd>{pickup(item.pickupStart)} – {pickup(item.pickupEnd)}</dd><dt>Allergen information</dt><dd>{item.allergens.length ? item.allergens.join(", ") : "No allergens declared; this does not mean allergen-free."} Confirm ingredients and cross-contact with the merchant.</dd></dl>
+        {item.description && <p className={styles.small}>{item.description}</p>}
+        <div className={styles.row}><div><span className={styles.price}>{money(item.price)}</span><span className={styles.original}>{money(item.origPrice)}</span></div><button className={styles.primary} disabled={expired || item.qtyLeft === 0 || busy !== null} onClick={() => void reserve(item)}>{busy === item.id ? "Reserving…" : expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : "Reserve one · demo"}</button></div>
+      </article>;
+    })}</div>
+    {ready && items.length === 0 && !error && <section className={styles.empty}><h2>No listings yet.</h2><p>Post a sample listing to try the flow.</p></section>}
+    <footer className={styles.footer}><Link href="/cook/plan">Cook at home</Link><Link href="/cook/demo">Try the cooking demo</Link><Link href="/support">Find food support</Link></footer>
+  </main>;
+}

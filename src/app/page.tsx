@@ -19,7 +19,6 @@ export default async function Home() {
         {user ? <>
           <Link className="btn" href="/onboarding">Set up my kitchen</Link>
           <Link className="btn secondary" href="/cook">Cook at home</Link>
-          <Link className="btn secondary" href="/cook/demo">Try the cooking demo</Link>
         </> : <a className="btn" href="/auth/login?returnTo=/onboarding">Continue with Auth0</a>}
         {!authReady && <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Demo mode · no cloud keys required</p>}
       </section>
