@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { demoStore } from "@/lib/demo-store";
 import { readApiError } from "@/lib/api-error";
 import { dietaryFieldErrors } from "@/lib/profile-validation";
+import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 
 const options = {
@@ -69,8 +70,12 @@ export function OnboardingForm() {
   function addPantry() {
     const name = newItem.trim();
     if (!name) return;
-    setPantry((items) => [...items, { name, qtyG: 0 }]);
+    setPantry((items) => [...items, { name, qtyG: 0, kind: guessPantryKind(name), amount: "unknown" }]);
     setNewItem("");
+  }
+
+  function updatePantry(index: number, change: Partial<PantryItem>) {
+    setPantry((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...change } : item));
   }
 
   function continueOnboarding() {
@@ -135,9 +140,24 @@ export function OnboardingForm() {
     </section>}
     {step === 2 && <section className="card"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /></section>}
     {step === 3 && <section className="card">
-      <p className="muted">Add staples or leftovers. Unknown quantities are okay.</p>
+      <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
       <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, border: "1px solid #cbd7ce", borderRadius: 14, padding: 13 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
-      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => <div key={`${item.name}-${index}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #edf0eb" }}><span>{item.name}</span><button className="chip" onClick={() => setPantry(pantry.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}</div>
+      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => {
+        const kind = item.kind ?? guessPantryKind(item.name);
+        const amount: PantryAmount = item.amount ?? "unknown";
+        return <div key={`${item.name}-${index}`} style={{ display: "grid", gap: 8, padding: "10px 0", borderBottom: "1px solid #edf0eb" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span><b>{item.name}</b>{item.qtyG > 0 && <span className="muted"> · {item.qtyG} g</span>}</span>
+            <span style={{ display: "flex", gap: 6 }}>
+              <button type="button" className="chip" onClick={() => updatePantry(index, { kind: kind === "seasoning" ? "ingredient" : "seasoning" })}>{kind === "seasoning" ? "Seasoning" : "Ingredient"} ⇄</button>
+              <button type="button" className="chip" onClick={() => setPantry(pantry.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+            </span>
+          </div>
+          {kind === "seasoning"
+            ? <span className="muted" style={{ fontSize: 14 }}>Have it. Recipes only use a little.</span>
+            : <div className="chips" role="group" aria-label={`How much ${item.name}`}>{PANTRY_AMOUNTS.map((option) => <button type="button" key={option.value} aria-pressed={amount === option.value} className={`chip ${amount === option.value ? "active" : ""}`} onClick={() => updatePantry(index, { amount: option.value, qtyG: 0 })}>{option.label}</button>)}</div>}
+        </div>;
+      })}</div>
       {fields._ && <p style={fieldErrorStyle}>{fields._}</p>}
     </section>}
     {step === 4 && <section className="card">

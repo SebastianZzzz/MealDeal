@@ -1,3 +1,5 @@
+import type { PantryAmount, PantryKind } from "@/lib/pantry-amounts";
+
 export type Language = "en" | "zh";
 export type WeightUnit = "g" | "kg" | "lb" | "oz" | "jin";
 export type VolumeUnit = "ml" | "l" | "cup" | "fl_oz";
@@ -29,7 +31,9 @@ export interface PantryItem {
   id?: string;
   name: string;
   foodId?: string | null;
-  qtyG: number;
+  qtyG: number; // exact grams; 0 = not measured, use `amount`
+  kind?: PantryKind; // seasonings only need "have it"
+  amount?: PantryAmount; // rough amount for ingredients, defaults to "unknown"
   updatedAt?: string;
 }
 
