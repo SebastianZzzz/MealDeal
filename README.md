@@ -25,3 +25,7 @@ Auth0 owns identity. Next.js validates the encrypted Auth0 session and performs 
 ## Shared contracts
 
 Shared contracts live in `src/contracts`. Other feature branches should import these rather than defining duplicates. See `docs/ARCHITECTURE.md` and `CONTRIBUTING.md` before starting a feature branch.
+
+## Local planning feature (C)
+
+See [C planning handoff](docs/PLANNING.md) for the v2 contract, local flow, Gemini setup, demo data and integration boundaries.

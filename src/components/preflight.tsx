@@ -8,24 +8,51 @@ import type { PantryItem, UserProfile } from "@/contracts";
 export function Preflight() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
-  const [pantryChanged, setPantryChanged] = useState<boolean | null>(null);
-  const [equipmentChanged, setEquipmentChanged] = useState<boolean | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [pantryConfirmed, setPantryConfirmed] = useState(false);
+  const [equipmentConfirmed, setEquipmentConfirmed] = useState(false);
+
   useEffect(() => {
-    const loadSavedKitchen = async () => ({
-      profile: demoStore.getProfile(),
-      pantry: demoStore.getPantry(),
-    });
-    loadSavedKitchen().then((saved) => {
-      setProfile(saved.profile);
-      setPantry(saved.pantry);
+    Promise.resolve().then(() => {
+      try {
+        setProfile(demoStore.getProfile());
+        setPantry(demoStore.getPantry());
+      } catch {
+        setProfile(null);
+      }
+      setLoaded(true);
     });
   }, []);
-  if (!profile?.onboardingComplete) return <main className="page"><h1>Let&apos;s set up your kitchen first.</h1><Link className="btn" href="/onboarding">Start setup</Link></main>;
-  const ready = pantryChanged === false && equipmentChanged === false;
+
+  if (!loaded) {
+    return <main className="page"><p role="status">Loading your kitchen…</p></main>;
+  }
+  if (!profile?.onboardingComplete) {
+    return <main className="page"><h1>Let&apos;s set up your kitchen first.</h1><Link className="btn" href="/onboarding">Start setup</Link></main>;
+  }
+  const ready = pantryConfirmed && equipmentConfirmed;
   return <main className="page">
-    <p style={{ color: "var(--green)", fontWeight: 800 }}>Before we plan</p><h1 style={{ fontSize: 38, letterSpacing: "-1.5px" }}>Anything changed at home?</h1>
-    <section className="card" style={{ marginTop: 24 }}><h2>Fridge & pantry</h2><p className="muted">{pantry.length ? pantry.map((x) => x.name).join(", ") : "No ingredients saved yet."}</p><div className="chips"><button className={`chip ${pantryChanged === false ? "active" : ""}`} onClick={() => setPantryChanged(false)}>No changes</button><Link className="chip" href="/onboarding">Update items</Link></div></section>
-    <section className="card" style={{ marginTop: 14 }}><h2>Kitchen equipment</h2><p className="muted">{profile.equipment.join(", ")}</p><div className="chips"><button className={`chip ${equipmentChanged === false ? "active" : ""}`} onClick={() => setEquipmentChanged(false)}>No changes</button><Link className="chip" href="/onboarding">Update equipment</Link></div></section>
-    <button className="btn" disabled={!ready} style={{ width: "100%", marginTop: 24 }} onClick={() => alert("Profile confirmed. The planning form can now consume this profile.")}>Continue to meal details</button>
+    <p style={{ color: "var(--green)", fontWeight: 800 }}>Before we plan</p>
+    <h1 style={{ fontSize: 38, letterSpacing: "-1.5px" }}>Anything changed at home?</h1>
+    <section className="card" style={{ marginTop: 24 }}>
+      <h2>Fridge & pantry</h2>
+      <p className="muted">{pantry.length ? pantry.map((item) => item.name).join(", ") : "No ingredients saved yet."}</p>
+      <div className="chips">
+        <button className={`chip ${pantryConfirmed ? "active" : ""}`} aria-pressed={pantryConfirmed} onClick={() => setPantryConfirmed(true)}>No changes</button>
+        <Link className="chip" href="/onboarding">Update items</Link>
+      </div>
+    </section>
+    <section className="card" style={{ marginTop: 14 }}>
+      <h2>Kitchen equipment</h2><p className="muted">{profile.equipment.join(", ")}</p>
+      <div className="chips">
+        <button className={`chip ${equipmentConfirmed ? "active" : ""}`} aria-pressed={equipmentConfirmed} onClick={() => setEquipmentConfirmed(true)}>No changes</button>
+        <Link className="chip" href="/onboarding">Update equipment</Link>
+      </div>
+    </section>
+    <Link className={`btn planning-full ${ready ? "" : "planning-disabled"}`} href={ready ? "/cook/plan" : "#"} aria-disabled={!ready} onClick={(event) => {
+      if (!ready) {
+        event.preventDefault();
+      }
+    }}>Continue to meal details</Link>
   </main>;
 }
