@@ -1,5 +1,6 @@
 import type { PantryItem as LegacyPantry, UserProfile as LegacyProfile } from "@/contracts";
 import type { Equipment, MeatVeg, PantryItem, UserProfile } from "@/types";
+import type { PlanningProfile } from "./schema";
 import { estimatePantryGrams } from "@/lib/pantry-amounts";
 import { matchFood } from "@/features/catalog/food-match";
 
@@ -12,9 +13,22 @@ const meatVegNames: Record<LegacyProfile["meatVegRatio"], MeatVeg> = {
   more_meat: "mostly_meat", balanced: "balanced", more_veg: "mostly_veg", vegetarian: "vegetarian",
 };
 
-export function adaptProfile(profile: LegacyProfile): UserProfile {
-  const equipment = profile.equipment.map((name) => equipmentNames[name.toLowerCase()])
+function nutritionGoal(value: string): UserProfile["nutritionGoal"] {
+  const normalized = value.trim().toLowerCase().replaceAll(/[_-]/g, " ");
+  if (/protein/.test(normalized)) {
+    return "high_protein";
+  }
+  if (["low calorie", "fewer calories"].includes(normalized)) {
+    return "low_calorie";
+  }
+  return normalized === "balanced" ? "balanced" : "none";
+}
+
+export function adaptProfile(profile: LegacyProfile): PlanningProfile {
+  const equipment = profile.equipment.map((name) => equipmentNames[name.trim().toLowerCase()])
     .filter((item): item is Equipment => Boolean(item));
+  const customEquipment = profile.equipment.filter((name) => !equipmentNames[name.trim().toLowerCase()]).map((name) => name.trim());
+  const goal = nutritionGoal(profile.nutritionGoal);
   return {
     id: profile.id ?? "demo-student", displayName: "",
     units: { ...profile.units, currency: "CAD" },
@@ -23,8 +37,10 @@ export function adaptProfile(profile: LegacyProfile): UserProfile {
     meatVeg: profile.dietary.some((item) => /^(vegetarian|vegan)$/i.test(item)) ? "vegetarian" : meatVegNames[profile.meatVegRatio],
     defaultServings: profile.defaultServings,
     equipment: [...new Set(equipment)], maxDistanceKm: profile.maxDistanceKm,
+    ...(customEquipment.length ? { customEquipment: [...new Set(customEquipment)] } : {}),
     ...(profile.home ? { home: profile.home } : {}),
-    nutritionGoal: /protein/i.test(profile.nutritionGoal) ? "high_protein" : "none",
+    nutritionGoal: goal,
+    ...(goal === "none" && profile.nutritionGoal.trim() && profile.nutritionGoal.trim().toLowerCase() !== "none" ? { customNutritionGoal: profile.nutritionGoal.trim() } : {}),
   };
 }
 

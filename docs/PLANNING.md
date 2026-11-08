@@ -7,8 +7,8 @@ This feature merges current `main`, including PR #2's shared contract.
 from `@/types`. Shared-contract changes belong in separate PRs. A's existing
 profile scaffold is adapted at the browser boundary by `adapter.ts`.
 
-Authentication is Auth0 only. Tiger Data integration will use A's server-only
-shared pool in `src/lib/db.ts`; until it exists, C uses mock JSON and localStorage.
+Authentication is Auth0 only. Account plans use A's server-only Tiger Data
+pool in `src/lib/db.ts`; the browser copy remains usable when account sync fails.
 No image storage is added. Recipe generation and new UI text are English.
 
 ## Local flow
@@ -17,8 +17,7 @@ No image storage is added. Recipe generation and new UI text are English.
 → `/cook/shopping` → `/cook/cooking` (D).
 
 `/cook/ready` is only a compatibility redirect to `/cook/cooking`. No cooking
-steps appear during shopping. The cooking page remains owned by D and must be
-included from D's branch during integration; C does not copy or implement it.
+steps appear during shopping. The integrated cooking page remains owned by D.
 
 The selected `MealPlan` is stored directly under `mealdeal.currentPlan`, without
 a wrapper. The existing options-cache key is unchanged.
@@ -26,9 +25,24 @@ a wrapper. The existing options-cache key is unchanged.
 `chosen.recipes`, `status`, `progress` and item-level `bought` state. Completion is
 blocked until every item is bought. Reloading restores progress. Empty lists are
 immediately complete. `Start cooking` appears after all items are checked and
-saves `status: "cooking"` before navigation. This is demo persistence only; cloud persistence and
-`PATCH /api/plan/:id` are deferred to integration with A's meal_plans table and
-user identity. There is no process-global pretend database.
+saves `status: "cooking"` before navigation.
+
+`POST /api/meal-plans` saves a selected option to the signed-in account.
+`PATCH /api/meal-plans/:id` mirrors shopping changes. The client serializes
+updates for each plan and captures each click's payload before waiting. Server
+writes compare the chosen plan, progress and status with the read snapshot;
+concurrent changes return `CONFLICT` rather than overwriting the winner or
+moving a completed cooking session backwards. Sync failures are visible on
+the shopping page, with retry and a link to review account plans. Offline
+changes remain local until a later successful save.
+
+`GET /api/meal-plans` returns up to 20 recently updated unfinished plans for
+the authenticated owner, never cached. `/cook/resume` lists them without
+requiring a local profile or plan. Opening one explicitly replaces the local
+current plan, clears old option metadata, and goes to shopping or cooking
+according to its saved status. Entry links appear in kitchen check and the
+empty shopping/cooking states. Local-only plans cannot be recovered on another
+device. No migration or new environment variable is required.
 
 ## Planning API
 
@@ -40,6 +54,14 @@ user identity. There is no process-global pretend database.
 
 All three shapes use v2 types. The browser provides demo profile/pantry context;
 cloud integration should load trusted current profile and pantry server-side.
+The planning-only profile schema adds optional `customEquipment` and
+`customNutritionGoal` fields without changing shared `src/types.ts`.
+Known nutrition goals map to high_protein, low_calorie or balanced. Custom
+tools such as Blender and Tagine, and custom goals such as High fiber, survive
+the adapter and reach Gemini as data. These extra fields pass the same
+server-side choice checks as other custom choices, failing closed on invalid
+or unavailable checks. Custom cookware is not silently mapped to an appliance
+the user does not have.
 Returns the unmodified `PlanResponse` shape plus additive `meta` (defined in
 `src/contracts/planning-api.ts`) with generation
 mode, sample-data label, stores, products, warnings and missing-nutrition names
@@ -143,6 +165,11 @@ labels/certification; richer product metadata is a later catalog improvement.
 ## Verification
 
 Run `npm run test:planning`, `npm run lint` and `npm run build`.
+CI also runs `test:api`, `test:catalog`, `test:planning` and `test:d` before the
+production build. Account-route tests mock the shared pool; they perform no
+live database writes. Added regressions cover malformed save bodies,
+owner-scoped account discovery, serialized shopping updates, competing writes,
+cooking completion conflicts, and preserving custom planning preferences.
 The planning tests cover costs, package rounding, pantry limits, meal coverage,
 batch scaling, missing nutrition, dates, distance, restrictions, ID validation,
 Gemini structured-output requests, corrective retries and provider failures.

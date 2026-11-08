@@ -27,7 +27,7 @@ export function Preflight() {
     return <main className="page"><p role="status">Loading your kitchen…</p></main>;
   }
   if (!profile?.onboardingComplete) {
-    return <main className="page"><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link></main>;
+    return <main className="page"><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link><Link className="btn secondary planning-full" href="/cook/resume">Continue a saved plan</Link></main>;
   }
   return <main className="page">
     <ScreenHeader backHref="/" />
@@ -44,5 +44,6 @@ export function Preflight() {
       <Link className="btn secondary" style={{ width: "100%" }} href="/onboarding?step=3">Update equipment</Link>
     </section>
     <Link className="btn primary planning-full" href="/cook/plan">Plan a meal →</Link>
+    <Link className="btn secondary planning-full" href="/cook/resume">Continue a saved plan</Link>
   </main>;
 }

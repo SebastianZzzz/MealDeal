@@ -25,6 +25,9 @@ export const mealPlanStore = {
   setOptions(value: SavedOptions): void {
     localStorage.setItem(OPTIONS_KEY, JSON.stringify(value));
   },
+  clearOptions(): void {
+    localStorage.removeItem(OPTIONS_KEY);
+  },
   getSelected(): MealPlan | null {
     return readSaved<MealPlan>(SELECTED_KEY);
   },
