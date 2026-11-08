@@ -20,6 +20,8 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
   const markers = useRef<Map<string, Marker>>(new Map());
   const circle = useRef<Circle | null>(null);
   const select = useRef(onSelect);
+  const latest = useRef(points);
+  useEffect(() => { latest.current = points; }, [points]);
   useEffect(() => { select.current = onSelect; }, [onSelect]);
 
   // Create the map once.
@@ -28,7 +30,10 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
     void import("leaflet").then((L) => {
       if (cancelled || !element.current || map.current) return;
       leaflet.current = L;
-      map.current = L.map(element.current, { scrollWheelZoom: false }).setView([49.265, -123.17], 12);
+      // No starting view here: the first draw sets it from the points, so the map doesn't open over
+      // central Vancouver and then jump. Only an empty map gets the city view.
+      map.current = L.map(element.current, { scrollWheelZoom: false });
+      if (!latest.current.length) map.current.setView([49.265, -123.17], 12);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
@@ -62,7 +67,8 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
       if (radiusKm && points.length === 1) {
         // A distance setting: show the whole circle so the slider visibly changes the map.
         circle.current = L.circle([points[0].lat, points[0].lng], { radius: radiusKm * 1000, color: "#00704a", weight: 2, fillOpacity: 0.08 }).addTo(map.current);
-        map.current.fitBounds(circle.current.getBounds(), { padding: [12, 12] });
+        // From the centre and radius: works before the map has a view (circle.getBounds() doesn't).
+        map.current.fitBounds(L.latLng(points[0].lat, points[0].lng).toBounds(radiusKm * 2000), { padding: [12, 12] });
       } else if (points.length > 1) map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
       else if (points.length === 1) map.current.setView([points[0].lat, points[0].lng], 15);
     }
