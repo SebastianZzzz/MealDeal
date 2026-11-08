@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PlanningResponse } from "@/contracts/planning-api";
 import { calculateOption } from "./calculate";
-import { loadCatalog } from "./catalog";
+import { loadCatalog, type Catalog } from "./catalog";
 import { createDemoOptions } from "./demo";
 import { filterPantry, filterProducts } from "./filter";
 import { generateWithGemini } from "./gemini";
@@ -23,8 +23,8 @@ function optionSignature(option: PlanningResponse["options"][number]): string {
   return JSON.stringify(recipes.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
 }
 
-export async function generatePlan(input: PlanningInput): Promise<PlanningResponse> {
-  const catalog = await loadCatalog();
+export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catalog): Promise<PlanningResponse> {
+  const catalog = catalogSnapshot ?? await loadCatalog();
   const profile = { ...input.profile, meatVeg: input.request.meatVeg };
   // A request can make a vegetarian profile stricter, never silently relax it.
   if (input.profile.meatVeg === "vegetarian") {

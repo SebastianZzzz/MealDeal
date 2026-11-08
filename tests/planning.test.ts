@@ -12,11 +12,19 @@ import type { DraftOption } from "../src/features/planning/schema";
 import type { DealCheck, Food, PantryItem, PlanRequest, Product, Store } from "../src/types";
 import { parseProductDeal, preferRealDeals, dealLabel } from "../src/features/planning/deals";
 import { loadProductDeals } from "../src/features/planning/deal-client";
+import { loadCatalog, type Catalog } from "../src/features/planning/catalog";
+import { POST as confirmProductReport } from "../src/app/api/products/route";
+import { isExpired } from "../src/features/catalog/index";
+import { tmpdir } from "node:os";
 
 const request: PlanRequest = { budget: 10, servings: 2, duration: "one_meal", batchCook: false, cuisines: [], meatVeg: "balanced" };
 const product: Product = { id: "rice", storeId: "near", name: "Rice", packageSizeG: 500, packagePrice: 2.5, packageUnit: "g", pricePer100: 999, isSale: true, source: "flyer", confidence: 1, reportedAt: "2026-11-07" };
 const store: Store = { id: "near", name: "Near", chain: "Test", address: "Test", lat: 49.26, lng: -123.25 };
 const food: Food = { id: "food-rice", name: "Rice (test fixture)", kcal: 100, proteinG: 10, fatG: 2, carbG: 20 };
+const fixtureCatalog: Catalog = {
+  products: [{ ...product, id: "sample-rice", packageSizeG: 900, packagePrice: 2.49 }],
+  stores: [store], foods: [], isSample: true,
+};
 
 function draft(qtyG = 100, mealSlots = ["day1-dinner"]): DraftOption {
   return { title: "Rice plan", recipes: [{ title: "Rice", mealSlots, baseServings: 1, ingredients: [{ productId: "rice", pantryItemId: null, name: "Model label", qtyG }], steps: [{ summary: "Cook", detail: "Cook the rice.", timerSec: 600 }], totalMinutes: 15 }] };
@@ -181,7 +189,7 @@ const input: PlanningInput = { request, profile: adaptProfile(defaultProfile), p
 
 test("Gemini request uses structured JSON and code ignores invented prices", async () => {
   await withGeminiMock(async () => {
-    const result = await generatePlan(input);
+    const result = await generatePlan(input, fixtureCatalog);
     assert.equal(result.meta.mode, "gemini");
     assert.equal(result.options.length, 2);
     assert.equal(result.options[0].shoppingCost, 2.49);
@@ -198,7 +206,7 @@ test("Gemini request uses structured JSON and code ignores invented prices", asy
 test("invalid model IDs trigger a corrective retry", async () => {
   let calls = 0;
   await withGeminiMock(async () => {
-    const result = await generatePlan(input);
+    const result = await generatePlan(input, fixtureCatalog);
     assert.equal(result.options.length, 2);
     assert.equal(calls, 2);
   }, (call, init) => {
@@ -215,7 +223,7 @@ test("invalid model IDs trigger a corrective retry", async () => {
 
 test("duplicate options are not presented as distinct and valid options survive retry failure", async () => {
   await withGeminiMock(async () => {
-    const result = await generatePlan(input);
+    const result = await generatePlan(input, fixtureCatalog);
     assert.equal(result.options.length, 1);
     assert.ok(result.meta.warnings.some((warning) => warning.includes("Only one")));
   }, (call) => call === 1 ? geminiResponse([modelDraft(), modelDraft()]) : new Response("Provider failed", { status: 503 }));
@@ -223,7 +231,7 @@ test("duplicate options are not presented as distinct and valid options survive 
 
 test("provider failures are surfaced instead of silently fabricating demo recipes", async () => {
   await withGeminiMock(async () => {
-    await assert.rejects(generatePlan(input), /could not return valid plans/);
+    await assert.rejects(generatePlan(input, fixtureCatalog), /could not return valid plans/);
   }, () => new Response("Provider failed", { status: 503 }));
 });
 
@@ -292,5 +300,49 @@ test("deal endpoint failures preserve planning without fabricated verdicts", asy
     } else {
       process.env.APP_BASE_URL = previousOrigin;
     }
+  }
+});
+
+test("catalog includes newly confirmed reports and updated prices", async () => {
+  const reportStore: Store = {
+    id: "planning-test@report-store", name: "Planning test store", chain: "Test",
+    address: "Test address", lat: 49.26, lng: -123.25,
+  };
+  const report = {
+    storeId: reportStore.id, store: reportStore, name: "Planning integration rice",
+    sizeText: "900 g", priceText: "$2.49", isSale: false, category: "grain",
+  };
+  async function submit(priceText: string) {
+    return confirmProductReport(new Request("http://localhost/api/products", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...report, priceText }),
+    }));
+  }
+  const first = await submit(report.priceText);
+  assert.equal(first.status, 201);
+  const { product: confirmed } = await first.json() as { product: Product };
+  const catalog = await loadCatalog();
+  assert.equal(catalog.products.find((item) => item.id === confirmed.id)?.source, "report");
+  assert.equal(catalog.products.find((item) => item.id === confirmed.id)?.packagePrice, 2.49);
+  assert.equal(catalog.stores.find((item) => item.id === reportStore.id)?.name, reportStore.name);
+  assert.ok(catalog.products.every((item) => !isExpired(item)));
+
+  const updated = await submit("$1.99");
+  assert.equal(updated.status, 201);
+  const refreshed = await loadCatalog();
+  assert.equal(refreshed.products.find((item) => item.id === confirmed.id)?.packagePrice, 1.99);
+  assert.equal(refreshed.products.filter((item) => item.id === confirmed.id).length, 1);
+});
+
+test("catalog loading is independent of the process working directory", async () => {
+  const previousDirectory = process.cwd();
+  process.chdir(tmpdir());
+  try {
+    const catalog = await loadCatalog();
+    assert.ok(catalog.stores.length > 0);
+    assert.ok(catalog.products.some((item) => item.source === "report"));
+    assert.equal(typeof catalog.isSample, "boolean");
+  } finally {
+    process.chdir(previousDirectory);
   }
 });

@@ -58,13 +58,21 @@ and stove; other equipment combinations require Gemini.
 
 ## B's catalog handoff
 
-Replace `mock/products.json`, `mock/stores.json` and `mock/foods.json` with arrays
-of v2 `Product`, `Store` and `Food`. IDs must be unique and store references must
-exist. `mock/catalog-meta.json` contains `{ "isSample": true }`; set it to false
-only when the replacement data is actually verified. Current stores and prices
-are deliberately fictional samples (10 products), not B's 30–50 item deliverable.
-`foods.json` is deliberately empty; no invented or model-estimated nutrients.
-B owns nutrition matching and can supply database-derived `Food` entries.
+C imports `listProducts` and `listKnownStores` from `@/features/catalog`, B's
+public feature boundary. `listProducts()` is called with its default filtering;
+it includes confirmed price-tag reports and excludes expired products. C does
+not pass `includeExpired: true` or read product/store JSON with fs.
+
+The `feature/catalog` branch is integrated, including B's 40 flyer products and
+real UBC-area stores. The three B-owned seed/metadata files match that branch.
+B owns persistence: its current in-memory confirmed reports are lost on server
+restart, and its later Tiger Data implementation can replace the accessor
+bodies without changing C's caller.
+
+`mock/foods.json` and `mock/catalog-meta.json` use static JSON imports so Next.js
+bundles them for Vercel. Catalog loading never depends on process.cwd() or
+deployment filesystem paths. `foods.json` remains empty until database-backed
+nutrition data is supplied; no nutrient values are invented.
 
 Only gram-based products are accepted for recipes: the current contract supplies
 gram quantities and has no piece-weight or density mapping. ml/piece products are
@@ -108,6 +116,13 @@ The planning tests cover costs, package rounding, pantry limits, meal coverage,
 batch scaling, missing nutrition, dates, distance, restrictions, ID validation,
 Gemini structured-output requests, corrective retries and provider failures.
 No Gemini call or paid service is required by tests.
+Planning service tests use a fixed catalog snapshot, so changing weekly flyer
+offers does not invalidate arithmetic/model-validation tests. Integration tests
+confirm reports through B's product route, check that C sees new/revised prices,
+and load the catalog from a different working directory. The test runner resolves
+Next.js's @/* alias and rewrites B's relative .ts imports when compiling tests.
+The planning test loader uses Node 22.15 or later, matching the CI Node 22 setup.
+`npm run test:catalog` runs B's price-normalization checks unchanged.
 
 ## P1 deal integration
 
@@ -124,7 +139,7 @@ integration becomes live when B publishes the endpoint after 20:00.
 
 C's PR changes `src/components/preflight.tsx` to connect A's confirmation screen
 to `/cook/plan`, and adds scoped planning styles in `src/app/globals.css`.
-A should build on both files during integration. `loadCatalog()` and the three
-B-owned mock product/store/metadata arrays are retained without redesigning IDs
-or changing their v2 shape. Store IDs such as `save-on-foods@wesbrook-village`
-are accepted unchanged. The only catalog-schema adjustment removes imageUrl.
+A should build on both files during integration. C's catalog adapter now calls
+B's public accessors and preserves their v2 data shape and store IDs. The adapter
+still validates results but owns no separate product/store persistence. Store IDs
+such as `save-on-foods@wesbrook-village` are accepted unchanged.

@@ -1,7 +1,8 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
 import type { Food, Product, Store } from "@/types";
+import { listProducts, listKnownStores } from "@/features/catalog";
+import nutritionData from "../../../mock/foods.json";
+import catalogMetadata from "../../../mock/catalog-meta.json";
 
 const productSchema = z.object({
   id: z.string().min(1), storeId: z.string().min(1), foodId: z.string().optional(),
@@ -22,11 +23,6 @@ const foodSchema = z.object({
   carbG: z.number().finite().nonnegative(), dbRef: z.string().optional(),
 });
 
-async function readJson(name: string): Promise<unknown> {
-  const filename = path.join(process.cwd(), "mock", name);
-  return JSON.parse(await readFile(filename, "utf8"));
-}
-
 function assertUnique(items: { id: string }[], label: string): void {
   if (new Set(items.map((item) => item.id)).size !== items.length) {
     throw new Error(`Duplicate IDs in ${label}.`);
@@ -36,16 +32,14 @@ function assertUnique(items: { id: string }[], label: string): void {
 export interface Catalog { products: Product[]; stores: Store[]; foods: Food[]; isSample: boolean }
 
 export async function loadCatalog(): Promise<Catalog> {
-  // B can replace these three JSON arrays without changing planning logic.
-  const [rawProducts, rawStores, rawFoods, metadata] = await Promise.all([
-    readJson("products.json"), readJson("stores.json"), readJson("foods.json"), readJson("catalog-meta.json"),
-  ]);
+  // B owns expiry filtering and combines flyer seeds with confirmed price-tag reports.
+  const [rawProducts, rawStores] = await Promise.all([listProducts(), listKnownStores()]);
   const products = z.array(productSchema).parse(rawProducts);
   const stores = z.array(storeSchema).parse(rawStores);
-  const foods = z.array(foodSchema).parse(rawFoods);
+  const foods = z.array(foodSchema).parse(nutritionData);
   assertUnique(products, "products");
   assertUnique(stores, "stores");
   assertUnique(foods, "foods");
-  const { isSample } = z.object({ isSample: z.boolean() }).parse(metadata);
+  const { isSample } = z.object({ isSample: z.boolean() }).parse(catalogMetadata);
   return { products, stores, foods, isSample };
 }

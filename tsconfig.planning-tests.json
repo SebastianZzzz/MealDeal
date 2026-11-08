@@ -8,6 +8,7 @@
     "rootDir": ".",
     "incremental": false,
     "isolatedModules": false,
+    "rewriteRelativeImportExtensions": true,
     "types": ["node"],
     "ignoreDeprecations": "6.0"
   },
