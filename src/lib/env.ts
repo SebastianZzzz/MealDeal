@@ -6,6 +6,3 @@ export const isAuth0Configured = () =>
       process.env.AUTH0_SECRET &&
       process.env.APP_BASE_URL,
   );
-
-export const isSupabaseConfigured = () =>
-  Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);

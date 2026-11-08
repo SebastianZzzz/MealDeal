@@ -6,12 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "latest",
-    "@supabase/supabase-js": "latest",
     "next": "latest",
+    "pg": "^8.23.1",
     "react": "latest",
     "react-dom": "latest",
     "zod": "latest"
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
