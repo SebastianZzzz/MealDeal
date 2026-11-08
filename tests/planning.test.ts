@@ -246,6 +246,159 @@ test("duplicate options are not presented as distinct and valid options survive 
   }, (call) => call === 1 ? geminiResponse([modelDraft(), modelDraft()]) : new Response("Provider failed", { status: 503 }));
 });
 
+test("balanced prompts prefer main proteins while retaining vegetarian dietary rules", async () => {
+  await withGeminiMock(async () => {
+    const planningInput = { ...input, profile: { ...input.profile, dietary: ["vegetarian"] } };
+    await generatePlan(planningInput, fixtureCatalog);
+  }, (_call, init) => {
+    const prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text;
+    assert.match(prompt, /non-vegetarian balanced or mostly_meat requests, prefer eligible meat, fish, eggs, tofu or legumes/);
+    assert.match(prompt, /Vegetarian status includes both profile.meatVeg and vegetarian\/vegan dietary restrictions/);
+    assert.match(prompt, /dairy such as cheese or yogurt can supply the protein ingredient when permitted/);
+    assert.match(prompt, /Vegan plans must exclude dairy and eggs/);
+    assert.match(prompt, /"dietary":\["vegetarian"\]/);
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+test("a $15 mostly_meat request recovers two options after duplicate and over-budget proposals", async () => {
+  const catalog: Catalog = {
+    ...fixtureCatalog,
+    products: [
+      ...fixtureCatalog.products,
+      { ...product, id: "chicken", name: "Chicken", packagePrice: 20 },
+      { ...product, id: "tofu", name: "Firm tofu", packagePrice: 3 },
+      { ...product, id: "broccoli", name: "Broccoli", packagePrice: 2 },
+    ],
+  };
+  function proteinDraft(proteinId: string, withBroccoli = false): DraftOption {
+    const plan = modelDraft();
+    plan.recipes[0].ingredients.push({ productId: proteinId, pantryItemId: null, name: proteinId, qtyG: 100 });
+    if (withBroccoli) {
+      plan.recipes[0].ingredients.push({ productId: "broccoli", pantryItemId: null, name: "Broccoli", qtyG: 100 });
+    }
+    return plan;
+  }
+  let calls = 0;
+  await withGeminiMock(async () => {
+    const result = await generatePlan({ ...input, request: { ...request, budget: 15, meatVeg: "mostly_meat" } }, catalog);
+    assert.equal(calls, 3);
+    assert.equal(result.options.length, 2);
+    assert.deepEqual(result.options.map((option) => option.shoppingCost), [5.49, 7.49]);
+    assert.ok(result.options.every((option) => option.withinBudget));
+    assert.ok(result.options.every((option) => option.shoppingList.some((item) => item.productId === "tofu")));
+    assert.ok(result.options.every((option) => !option.shoppingList.some((item) => item.productId === "chicken")));
+  }, (call, init) => {
+    calls = call;
+    const prompt: string = JSON.parse(String(init?.body)).contents[0].parts[0].text;
+    assert.match(prompt, /"budget":15/);
+    assert.match(prompt, /"meatVeg":"mostly_meat"/);
+    if (call > 1) {
+      assert.match(prompt, /We have retained 1 valid options/);
+      assert.match(prompt, /relax cuisine specificity and the one-store preference/);
+      assert.match(prompt, /reduce the meat proportion or use eligible eggs, tofu or legumes/);
+      assert.match(prompt, /Never relax the total budget, allergies, dietary restrictions/);
+      assert.match(prompt, /"retainedOptions":\[\{"shoppingCost":5.49/);
+    }
+    if (call === 3) {
+      return geminiResponse([proteinDraft("tofu", true)]);
+    }
+    return geminiResponse([proteinDraft("tofu"), proteinDraft("chicken")]);
+  });
+});
+
+test("stops after bounded retries without claiming that a second option cannot exist", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    const result = await generatePlan(input, fixtureCatalog);
+    assert.equal(calls, 3);
+    assert.equal(result.options.length, 1);
+    assert.ok(result.meta.warnings.some((warning) => /Only one complete option was found/.test(warning)));
+  }, (call) => {
+    calls = call;
+    return geminiResponse([modelDraft(), modelDraft()]);
+  });
+});
+
+test("corrective retries never raise the budget to satisfy the option count", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    await assert.rejects(generatePlan({ ...input, request: { ...request, budget: 1 } }, fixtureCatalog), /No complete plan/);
+    assert.equal(calls, 3);
+  }, (call) => {
+    calls = call;
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
+test("retry proposals still enforce filtered allergies, finite pantry and complete meals", async () => {
+  let calls = 0;
+  const planningInput: PlanningInput = {
+    ...input,
+    profile: { ...input.profile, allergies: ["Soy"] },
+    pantry: [{ id: "owned", userId: "test", name: "Rice", qtyG: 1, updatedAt: "2026-11-07" }],
+  };
+  const catalog: Catalog = {
+    ...fixtureCatalog,
+    products: [...fixtureCatalog.products, { ...product, id: "tofu", name: "Firm tofu" }],
+  };
+  await withGeminiMock(async () => {
+    const result = await generatePlan(planningInput, catalog);
+    assert.equal(calls, 3);
+    assert.equal(result.options.length, 1);
+    assert.equal(result.options[0].recipes[0].ingredients[0].productId, "sample-rice");
+  }, (call) => {
+    calls = call;
+    const invalid = modelDraft(120);
+    if (call === 1) {
+      invalid.recipes[0].ingredients[0].productId = "tofu";
+    } else if (call === 2) {
+      invalid.recipes[0].ingredients[0].productId = null;
+      invalid.recipes[0].ingredients[0].pantryItemId = "owned";
+    } else {
+      invalid.recipes[0].mealSlots = ["day2-dinner"];
+    }
+    return geminiResponse([modelDraft(), invalid]);
+  });
+});
+
+test("does not make a third corrective call after the shared deadline", async () => {
+  const originalNow = Date.now;
+  let calls = 0;
+  try {
+    await withGeminiMock(async () => {
+      const result = await generatePlan(input, fixtureCatalog);
+      assert.equal(calls, 2);
+      assert.equal(result.options.length, 1);
+    }, (call) => {
+      calls = call;
+      if (call === 2) {
+        const afterDeadline = originalNow() + 60000;
+        Date.now = () => afterDeadline;
+      }
+      return geminiResponse([modelDraft(), modelDraft()]);
+    });
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test("uses the final corrective attempt for malformed JSON without switching to Flash", async () => {
+  let calls = 0;
+  await withGeminiMock(async () => {
+    const result = await generatePlan(input, fixtureCatalog);
+    assert.equal(calls, 3);
+    assert.equal(result.options.length, 2);
+  }, (call, _init, url) => {
+    calls = call;
+    assert.match(url!, /gemini-3.5-flash-lite:generateContent$/);
+    if (call < 3) {
+      return Response.json({ candidates: [{ content: { parts: [{ text: "invalid JSON" }] } }] });
+    }
+    return geminiResponse([modelDraft(), modelDraft(120)]);
+  });
+});
+
 test("provider failures are surfaced instead of silently fabricating demo recipes", async () => {
   await withGeminiMock(async () => {
     await assert.rejects(generatePlan(input, fixtureCatalog), /unavailable right now/);

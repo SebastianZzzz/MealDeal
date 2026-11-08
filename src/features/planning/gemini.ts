@@ -47,7 +47,8 @@ function buildPrompt(request: PlanRequest, profile: UserProfile, pantry: PantryI
     "Finite pantry quantities are limits for the ENTIRE scaled plan, not per recipe. Zero means none is available.",
     "Use only the supplied equipment. Honor allergies, dietary needs, cuisines, meatVeg, cooking time and notes.",
     "Make satisfying main meals, not tiny side dishes. Each meal must include a staple, vegetables and an explicit suitable protein ingredient when eligible sources are available. Rice with potatoes or vegetables alone is not a complete main meal.",
-    "Vegetarian does not mean vegan: dairy such as cheese or yogurt can supply the protein ingredient when permitted. In soy-free vegetarian plans, consider eligible dairy instead of omitting protein. Never invent an unavailable protein ingredient.",
+    "For non-vegetarian balanced or mostly_meat requests, prefer eligible meat, fish, eggs, tofu or legumes as the main protein. Do not choose rice, apples and yogurt as a balanced main meal when one of those protein sources fits the budget and restrictions. Dairy can be an addition; do not default to it as the sole protein.",
+    "Vegetarian status includes both profile.meatVeg and vegetarian/vegan dietary restrictions. Vegetarian does not mean vegan: dairy such as cheese or yogurt can supply the protein ingredient when permitted. In soy-free vegetarian plans, consider eligible dairy instead of omitting protein. Vegan plans must exclude dairy and eggs. Never invent an unavailable protein ingredient.",
     "Prefer options whose purchased products all come from one store. Make the first option a complete one-store plan when feasible within budget; pantry items require no store visit. If that is impossible, minimize the number of stores.",
     "Match the protein cut to the cooking time. For short pan-cooked meals prefer tender cuts or tofu; do not quick-fry pork picnic or shoulder chunks as if they were tenderloin. Tough cuts need a suitable longer cooking method that fits the time limit.",
     "Write practical steps for the actual ingredient form (raw or precooked), including preparation, cooking order, heat method and observable doneness. Never add ingredients that are absent from the ingredient list.",
@@ -58,7 +59,7 @@ function buildPrompt(request: PlanRequest, profile: UserProfile, pantry: PantryI
     "Write all recipe titles and instructions in English. Explain recipes clearly. timerSec is null for untimed steps.",
     "Use realistic one-portion cook times; code estimates a longer duration for batches. Prefer ingredient reuse across days.",
     JSON.stringify({ request, profile, pantry, products, requiredMealSlots: getMealSlots(request) }),
-    feedback ? `Previous attempt failed validation: ${feedback}. Return corrected complete options.` : "",
+    feedback ? `Previous attempt failed validation or returned too few distinct options: ${feedback}` : "",
   ].join("\n");
 }
 

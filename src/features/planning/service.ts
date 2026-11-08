@@ -9,6 +9,9 @@ import { draftOptionSchema, type PlanningInput } from "./schema";
 import { loadProductDeals } from "./deal-client";
 import { preferRealDeals } from "./deals";
 import { comparePlanOptions } from "./rank-options";
+import { buildRetryFeedback } from "./retry";
+
+const MAX_GENERATION_ATTEMPTS = 3;
 
 export class PlanningError extends Error {
   constructor(message: string, public readonly status = 422) {
@@ -64,7 +67,11 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   // Share the time budget and unavailable-model list across any corrective retry.
   const generationContext = { deadline: Date.now() + 50000, unavailableModels: new Set<string>() };
   let feedback = "";
-  for (let attempt = 0; attempt < (mode === "gemini" ? 2 : 1); attempt++) {
+  const maxAttempts = mode === "gemini" ? MAX_GENERATION_ATTEMPTS : 1;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (mode === "gemini" && Date.now() >= generationContext.deadline) {
+      break;
+    }
     let drafts: unknown[];
     try {
       drafts = mode === "gemini"
@@ -77,8 +84,8 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
         }
         throw new PlanningError("The recipe service is unavailable right now. Please try again later.", 502);
       }
-      if (attempt === 0 && mode === "gemini") {
-        feedback = "Return valid structured JSON with complete, affordable options.";
+      if (attempt + 1 < maxAttempts) {
+        feedback = buildRetryFeedback(options, ["Return valid structured JSON with complete, affordable options."]);
         continue;
       }
       if (options.length) {
@@ -107,16 +114,16 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
         errors.push(error instanceof Error ? error.message.slice(0, 500) : "Invalid option.");
       }
     }
-    if (options.length >= 2 || attempt === 1 || mode === "demo") {
+    if (options.length >= 2) {
       break;
     }
-    feedback = errors.join(" ") || "Provide at least two distinct affordable options.";
+    feedback = buildRetryFeedback(options, errors);
   }
   if (!options.length) {
     throw new PlanningError("No complete plan fits these constraints. Try a larger total budget, fewer meals, more cooking time or different equipment. No items have been added to your shopping list.");
   }
   if (options.length < 2) {
-    warnings.push("Only one complete option fits the budget and constraints.");
+    warnings.push("Only one complete option was found within the budget, restrictions and generation limits. Try again for more choices.");
   }
   options.sort(comparePlanOptions);
   return { requestId, options: options.slice(0, 3), meta: { mode, isSample: catalog.isSample, stores: catalog.stores, products, missingNutrition, warnings } };
