@@ -31,6 +31,7 @@ cook step by step, grab end-of-day food for less, and find free food support nea
 - [What you can do](#what-you-can-do)
 - [How we use each tool](#how-we-use-each-tool)
 - [Architecture](#architecture)
+- [Data and database](#data-and-database)
 - [Run it locally](#run-it-locally)
 - [Project structure](#project-structure)
 - [Testing and CI](#testing-and-ci)
@@ -148,6 +149,36 @@ flowchart LR
 (falling back to the nearest stores with a warning), asks Gemini for recipe drafts that may only use those product
 IDs, rejects drafts that break a rule, then prices them by code: whole packages, pantry first, budget checked. If
 nothing fits, the error says how much the cheapest complete plan costs.
+
+## Data and database
+
+All data lives in one **Tiger Data** service (PostgreSQL + TimescaleDB), reached only from server routes.
+Full schema, data flows, queries and code locations: **[docs/DATABASE.md](docs/DATABASE.md)**.
+
+| Table | Holds |
+| --- | --- |
+| `users` · `pantry_items` | Your kitchen: rules, equipment, shopping area (rounded to ~100 m), pantry |
+| `meal_plans` | Chosen plan, shopping list and cooking progress (JSONB) |
+| `stores` · `products` · `foods` | Nearby stores, current prices, nutrition per 100 g |
+| `price_observations` | **TimescaleDB hypertable**: every flyer, community report and sample price over time |
+| `surplus_listings` | Eat Out meals and portions left |
+
+Three queries carry most of the weight:
+
+```sql
+-- Deal check: this product's prices at this store over the last 28 days (median computed in code)
+select time, price_per_100, source from price_observations
+where product_id = $1 and time >= $2 and time < $3 order by time;
+
+-- Shopping progress: only saves if no other device changed the plan since it was read
+update meal_plans set chosen = $2::jsonb, status = $3, updated_at = now()
+where id = $1 and chosen = $4::jsonb and progress = $5::jsonb and status = $6
+  and user_id in (select id from users where auth0_id = $7) returning ...;
+
+-- Eat Out: reserving the last portion can't be done twice
+update surplus_listings set qty_left = qty_left - 1
+where id = $1 and qty_left > 0 and pickup_end > clock_timestamp() returning *;
+```
 
 ## Run it locally
 
