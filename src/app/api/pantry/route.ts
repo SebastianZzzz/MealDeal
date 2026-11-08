@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { assertDatabaseConfigured, db } from "@/lib/db";
 import { getIdentity } from "@/lib/session";
+import { apiError, validationError } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 
@@ -12,11 +12,16 @@ const pantrySchema = z.array(z.object({
   qtyG: z.number().min(0).max(100000),
 })).max(100);
 
+function isConstraintError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error &&
+    typeof error.code === "string" && error.code.startsWith("23");
+}
+
 export async function GET() {
   const identity = await getIdentity();
-  if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!identity?.sub) return apiError("UNAUTHORIZED", "Please log in to view your pantry.");
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
-    return NextResponse.json({ items: [], mode: "demo" });
+    return Response.json({ items: [], mode: "demo" });
   }
   try {
     assertDatabaseConfigured();
@@ -28,7 +33,7 @@ export async function GET() {
        order by p.name`,
       [identity.sub],
     );
-    return NextResponse.json({
+    return Response.json({
       items: result.rows.map((item) => ({
         id: item.id,
         name: item.name,
@@ -40,17 +45,23 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET /api/pantry failed", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+    return apiError("DATABASE_UNAVAILABLE", "Your pantry is unavailable right now. Please try again later.");
   }
 }
 
 export async function PUT(request: Request) {
   const identity = await getIdentity();
-  if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const parsed = pantrySchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!identity?.sub) return apiError("UNAUTHORIZED", "Please log in to save your pantry.");
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return apiError("VALIDATION_FAILED", "The pantry request is not valid.");
+  }
+  const parsed = pantrySchema.safeParse(body);
+  if (!parsed.success) return validationError(parsed.error);
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
-    return NextResponse.json({ items: parsed.data, mode: "demo" });
+    return Response.json({ items: parsed.data, mode: "demo" });
   }
   let client: PoolClient | undefined;
   let transactionOpen = false;
@@ -64,7 +75,7 @@ export async function PUT(request: Request) {
     if (!userId) {
       await client.query("rollback");
       transactionOpen = false;
-      return NextResponse.json({ error: "Complete profile first" }, { status: 409 });
+      return apiError("CONFLICT", "Complete your profile before saving pantry items.");
     }
 
     await client.query("delete from pantry_items where user_id = $1", [userId]);
@@ -87,11 +98,14 @@ export async function PUT(request: Request) {
     }
     await client.query("commit");
     transactionOpen = false;
-    return NextResponse.json({ items: savedItems, mode: "database" });
+    return Response.json({ items: savedItems, mode: "database" });
   } catch (error) {
     if (client && transactionOpen) await client.query("rollback");
     console.error("PUT /api/pantry failed", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+    if (isConstraintError(error)) {
+      return apiError("CONFLICT", "One or more pantry items conflict with saved data. Please review them and try again.");
+    }
+    return apiError("DATABASE_UNAVAILABLE", "Your pantry could not be saved because the database is unavailable.");
   } finally {
     client?.release();
   }
