@@ -1,0 +1,5 @@
+[
+  { "id": "sample-village-bakery", "merchantName": "Village Bakery (sample)", "address": "UBC Village area, Vancouver — sample location", "lat": 49.266, "lng": -123.243, "title": "Bread & pastry bag", "origPrice": 12, "price": 4, "qtyLeft": 3, "allergens": ["wheat", "milk", "eggs"], "description": "An illustrative bakery bundle. This merchant and offer are fictional." },
+  { "id": "sample-campus-kitchen", "merchantName": "Campus Kitchen (sample)", "address": "West Mall area, Vancouver — sample location", "lat": 49.261, "lng": -123.253, "title": "Vegetable rice bowl", "origPrice": 10, "price": 3.5, "qtyLeft": 2, "allergens": ["soy", "sesame"], "description": "An illustrative prepared meal. This merchant and offer are fictional." },
+  { "id": "sample-neighbourhood-cafe", "merchantName": "Neighbourhood Cafe (sample)", "address": "University Boulevard area, Vancouver — sample location", "lat": 49.266, "lng": -123.237, "title": "Soup & sandwich set", "origPrice": 14, "price": 5, "qtyLeft": 1, "allergens": ["wheat", "milk"], "description": "An illustrative cafe meal. This merchant and offer are fictional." }
+]
