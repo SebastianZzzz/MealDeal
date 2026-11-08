@@ -1,11 +1,30 @@
 import type { Product, Store } from "@/types";
 import seedProducts from "../../../mock/products.json";
 import seedStores from "../../../mock/stores.json";
+import {
+  insertStore,
+  recordPrice,
+  selectProduct,
+  selectProducts,
+  selectStore,
+  selectStores,
+  type Queryable,
+} from "./catalog-sql.ts";
 import { sortByDistance, type NearbyStore } from "./stores.ts";
 
-// Catalog data access. Until the Tiger Data pool (src/lib/db.ts) lands, this is the flyer seed
-// plus an in-memory list of confirmed reports (lost on server restart; fine for local dev).
-// Swap the bodies of these functions for SQL later; callers do not change.
+// Catalog data access. With DATABASE_URL set, everything lives in Tiger Data (A's shared pool).
+// Without it (local dev), the flyer seed plus an in-memory list of confirmed reports is used.
+// Callers (planning, routes) see the same functions either way.
+
+interface Pool extends Queryable {
+  connect(): Promise<Queryable & { release(): void }>;
+}
+
+async function database(): Promise<Pool | null> {
+  if (!process.env.DATABASE_URL) return null;
+  const { db } = await import("@/lib/db");
+  return db as unknown as Pool;
+}
 
 interface MemoryCatalog {
   stores: Map<string, Store>;
@@ -26,14 +45,21 @@ function memory(): MemoryCatalog {
 }
 
 export async function listKnownStores(): Promise<Store[]> {
-  return [...memory().stores.values()];
+  const db = await database();
+  return db ? selectStores(db) : [...memory().stores.values()];
 }
 
 export async function getStore(id: string): Promise<Store | undefined> {
-  return memory().stores.get(id);
+  const db = await database();
+  return db ? selectStore(db, id) : memory().stores.get(id);
 }
 
 export async function saveStore(store: Store): Promise<Store> {
+  const db = await database();
+  if (db) {
+    await insertStore(db, store);
+    return (await selectStore(db, store.id)) ?? store;
+  }
   const stores = memory().stores;
   if (!stores.has(store.id)) stores.set(store.id, store);
   return stores.get(store.id)!;
@@ -58,6 +84,8 @@ export function isExpired(product: Product, now = new Date()): boolean {
 }
 
 export async function listProducts(query: ProductQuery = {}): Promise<Product[]> {
+  const db = await database();
+  if (db) return selectProducts(db, query);
   const storeIds = query.storeIds ? new Set(query.storeIds) : undefined;
   return [...memory().products.values()].filter(
     (product) =>
@@ -68,11 +96,23 @@ export async function listProducts(query: ProductQuery = {}): Promise<Product[]>
 }
 
 export async function getProduct(id: string): Promise<Product | undefined> {
-  return memory().products.get(id);
+  const db = await database();
+  return db ? selectProduct(db, id) : memory().products.get(id);
 }
 
-// A confirmed report replaces the current price for the same product at the same store.
+// A confirmed report replaces the current price for the same product at the same store
+// and, with a database, also adds a row to the price history.
 export async function saveProduct(product: Product): Promise<Product> {
-  memory().products.set(product.id, product);
-  return product;
+  const db = await database();
+  if (!db) {
+    memory().products.set(product.id, product);
+    return product;
+  }
+  const client = await db.connect(); // a transaction needs one connection
+  try {
+    await recordPrice(client, product);
+  } finally {
+    client.release();
+  }
+  return (await selectProduct(db, product.id)) ?? product;
 }
