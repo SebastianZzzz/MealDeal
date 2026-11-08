@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Product } from "@/types";
 import type { PriceTagResponse } from "@/app/api/extract/price-tag/route";
+import { readApiError } from "@/lib/api-error";
 import { CATEGORIES } from "./categories.ts";
 import { normalizePrice } from "./pricing.ts";
 import type { NearbyStore } from "./stores.ts";
@@ -105,9 +106,8 @@ export function ReportForm() {
       form.append("lat", String(center.lat));
       form.append("lng", String(center.lng));
       const response = await fetch("/api/extract/price-tag", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not read the photo.");
-      const result = data as PriceTagResponse;
+      if (!response.ok) throw new Error((await readApiError(response)).error);
+      const result = (await response.json()) as PriceTagResponse;
       setItems(result.items.map((item) => ({
         key: nextKey++,
         name: item.name,
@@ -153,9 +153,12 @@ export function ReportForm() {
             category: item.category, confidence: item.confidence, date,
           }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : `Could not save ${item.name}.`);
-        results.push(data.product);
+        if (!response.ok) {
+          const failure = await readApiError(response);
+          const details = Object.values(failure.fields ?? {}).join(" ");
+          throw new Error(`${item.name || "This price"}: ${failure.error}${details ? ` ${details}` : ""}`);
+        }
+        results.push((await response.json()).product);
       }
       setSaved(results);
       setItems([]);
