@@ -10,6 +10,8 @@ import { useSaved } from "./use-saved";
 import { useProductDeals } from "./use-product-deals";
 import { dealLabel } from "./deals";
 import { plural } from "@/lib/plural";
+import { ScreenHeader } from "@/components/screen-header";
+import { Camera } from "lucide-react";
 import { syncShopping } from "./plan-sync";
 
 export function ShoppingView() {
@@ -62,11 +64,12 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
   }
 
   return <main className="page planning-page">
-    <Link className="planning-back" href="/cook/options">← Meal options</Link>
-    <p className="planning-eyebrow">COOK AT HOME · 3 OF 3</p><h1>One list.<br />Ready to shop.</h1>
+    <ScreenHeader backHref="/cook/options" />
+    <p className="planning-eyebrow">COOK AT HOME / SHOPPING</p><h1>Shopping list</h1>
     <p className="muted">{plan.chosen.title}</p>
     {saved?.response.meta.isSample && <p className="planning-notice">Sample stores and prices. Check current prices before purchasing.</p>}
     <div className="card planning-section"><div className="planning-row"><span>Expected checkout</span><strong className="planning-total">{formatMoney(plan.chosen.shoppingCost)}</strong></div><p className="planning-small muted">{formatMoney(plan.request.budget)} budget · full packages included</p><label htmlFor="shopping-progress" className="planning-small">{bought} of {plural(total, "item")} bought</label><progress id="shopping-progress" className="planning-progress" value={bought} max={Math.max(1, total)} /></div>
+    <Link className="btn secondary planning-full" href="/report" style={{ marginTop: 12 }}><Camera size={18} aria-hidden="true" />Found a better price? Snap the tag</Link>
     {total === 0 && <p className="planning-notice">Everything is already in your pantry. You&apos;re ready to cook.</p>}
     {storeIds.map((storeId) => {
       const store = saved?.response.meta.stores.find((item) => item.id === storeId);
@@ -89,7 +92,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
       </section>;
     })}
     {error && <p role="alert" className="planning-error">{error}</p>}
-    {bought === total && <button className="btn planning-full" onClick={finish}>Start cooking →</button>}
+    {bought === total && <button type="button" className="btn primary planning-full" onClick={finish}>Start cooking →</button>}
     <p className="planning-small muted">{bought === total ? "Your ingredients are ready. Your plan is saved on this device." : "Check off each item after buying it to finish shopping."}</p>
   </main>;
 }

@@ -7,6 +7,8 @@ import { readApiError } from "@/lib/api-error";
 import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile-validation";
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
+import { RangeField } from "@/components/range-field";
+import { LocateFixed, Trash2, X } from "lucide-react";
 
 const options = {
   dietary: ["Vegetarian", "Vegan", "Halal", "Kosher"],
@@ -26,8 +28,48 @@ function stepForFields(fields: Record<string, string>, fallback: number) {
   return fallback;
 }
 
-function Chips({ values, selected, onChange }: { values: string[]; selected: string[]; onChange: (value: string[]) => void }) {
-  return <div className="chips">{values.map((value) => <button type="button" key={value} className={`chip ${selected.includes(value) ? "active" : ""}`} onClick={() => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])}>{value}</button>)}</div>;
+const NUTRITION_GOALS = ["High protein", "Balanced", "Low calorie"];
+
+// Optional free-text entry under a group of choices: adds the item and selects it.
+function OtherInput({ label, values, selected, note, onNote, onAdd, onSelect }: {
+  label: string; values: string[]; selected: string[]; note: string; onNote: (note: string) => void;
+  onAdd: (value: string) => void; onSelect: (value: string) => void;
+}) {
+  const [text, setText] = useState("");
+  function add() {
+    const value = text.trim().replace(/\s+/g, " ");
+    if (!value) return;
+    const existing = values.find((item) => item.toLowerCase() === value.toLowerCase());
+    if (existing && selected.includes(existing)) onNote(`${existing} is already in the list.`);
+    else if (existing) { onSelect(existing); onNote(`${existing} was already in the list, so it is selected now.`); }
+    else { onAdd(value); onSelect(value); onNote(`${value} added and selected.`); }
+    setText("");
+  }
+  return <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
+    <div style={{ display: "flex", gap: 8 }}>
+      <input aria-label={`Other ${label}`} placeholder="Other (optional)" maxLength={60} value={text} onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); add(); } }}
+        className="text-input" style={{ flex: 1, minWidth: 0 }} />
+      <button type="button" className="btn secondary" disabled={!text.trim()} onClick={add}>Add</button>
+    </div>
+    <span className="muted" role="status" style={{ fontSize: 14, fontWeight: 400, minHeight: 20 }}>{note}</span>
+  </div>;
+}
+
+// Custom items (added with "Other") stay as chips while editing, even when unselected, so a mis-tap is
+// easy to undo. Their x removes them for good; unselected ones are simply not saved.
+function Chips({ values, selected, onChange, custom = [], onRemove }: { values: string[]; selected: string[]; onChange: (value: string[]) => void; custom?: string[]; onRemove?: (value: string) => void }) {
+  const all = [...new Set([...values, ...custom, ...selected])];
+  const toggle = (value: string) => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
+  return <div className="chips">{all.map((value) => {
+    if (!onRemove || values.includes(value)) {
+      return <button type="button" key={value} className="chip" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}>{value}</button>;
+    }
+    return <span key={value} className="chip chip-custom" data-pressed={selected.includes(value)}>
+      <button type="button" className="chip-toggle" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}>{value}</button>
+      <button type="button" className="chip-remove" aria-label={`Remove ${value}`} onClick={() => onRemove(value)}><X size={14} strokeWidth={2.6} /></button>
+    </span>;
+  })}</div>;
 }
 
 function englishProfile(profile: UserProfile): UserProfile {
@@ -41,11 +83,25 @@ export function OnboardingForm() {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [custom, setCustom] = useState<Record<"dietary" | "allergies" | "equipment" | "goal", string[]>>({ dietary: [], allergies: [], equipment: [], goal: [] });
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const note = (key: string) => (text: string) => setNotes((current) => ({ ...current, [key]: text }));
+  const [locating, setLocating] = useState(false);
+  const [postal, setPostal] = useState("");
+  const [placeNote, setPlaceNote] = useState("");
+  const addCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].includes(value) ? current[key] : [...current[key], value] }));
+  const dropCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].filter((item) => item !== value) }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [serverFields, setServerFields] = useState<Record<string, string>>({});
   const preferenceFields = dietaryFieldErrors(profile);
   const fields = { ...serverFields, ...preferenceFields };
+
+  useEffect(() => {
+    // /onboarding?step=4 opens one step directly (the kitchen check links here).
+    const requested = Number(new URLSearchParams(window.location.search).get("step"));
+    if (Number.isInteger(requested) && requested >= 1 && requested <= 5) Promise.resolve().then(() => setStep(requested - 1));
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -68,10 +124,47 @@ export function OnboardingForm() {
   }, []);
 
   function addPantry() {
-    const name = newItem.trim();
+    const name = newItem.trim().replace(/\s+/g, " ");
     if (!name) return;
-    setPantry((items) => [...items, { name, qtyG: 0, kind: guessPantryKind(name), amount: "unknown" }]);
+    const existing = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    if (existing) setNotes((current) => ({ ...current, pantry: `${existing.name} is already in your pantry.` }));
+    else {
+      setPantry((items) => [...items, { name, qtyG: 0, kind: guessPantryKind(name), amount: "unknown" }]);
+      setNotes((current) => ({ ...current, pantry: `${name} added.` }));
+    }
     setNewItem("");
+  }
+
+  function removePantry(index: number) {
+    const removed = pantry[index];
+    setPantry((items) => items.filter((_, itemIndex) => itemIndex !== index));
+    if (removed) setNotes((current) => ({ ...current, pantry: `${removed.name} removed.` }));
+  }
+
+  function setFromCurrentLocation() {
+    if (!navigator.geolocation) { setPlaceNote("This browser can't share a location. Enter a postal code instead."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition((position) => {
+      setProfile((current) => ({ ...current, home: { lat: Math.round(position.coords.latitude * 1000) / 1000, lng: Math.round(position.coords.longitude * 1000) / 1000 } }));
+      setPlaceNote("Shopping area set from your current location (about 100 m).");
+      setLocating(false);
+    }, () => { setPlaceNote("Location was not shared. Enter a postal code instead."); setLocating(false); }, { timeout: 10000, maximumAge: 600000 });
+  }
+
+  async function setFromPostal() {
+    if (!postal.trim()) return;
+    setLocating(true);
+    try {
+      const response = await fetch(`/api/geocode?postal=${encodeURIComponent(postal.trim())}`);
+      if (!response.ok) throw new Error((await readApiError(response)).error);
+      const place = await response.json() as { lat: number; lng: number; postal: string };
+      setProfile((current) => ({ ...current, home: { lat: place.lat, lng: place.lng } }));
+      setPlaceNote(`Shopping area set near ${place.postal}.`);
+    } catch (cause) {
+      setPlaceNote(cause instanceof Error ? cause.message : "Could not find that postal code.");
+    } finally {
+      setLocating(false);
+    }
   }
 
   function updatePantry(index: number, change: Partial<PantryItem>) {
@@ -121,52 +214,65 @@ export function OnboardingForm() {
     }
   }
 
-  const headings = ["Measurement units", "Food preferences", "Your kitchen", "What's already at home?", "Shopping range"];
-  return <main className="page">
-    <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><b>MealDeal</b><span className="muted">{step + 1} / 5</span></header>
-    <div style={{ height: 7, background: "#e2e6df", borderRadius: 99, margin: "20px 0 34px" }}><div style={{ width: `${(step + 1) * 20}%`, height: "100%", background: "var(--green)", borderRadius: 99 }} /></div>
-    <h1 style={{ fontSize: 34, letterSpacing: "-1.3px" }}>{headings[step]}</h1>
-    {step === 0 && <section className="card">
+  const headings = ["Units", "Food preferences", "Your equipment", "Your pantry", "Shopping range"];
+  return <main className="page onboarding-page">
+    <header className="onboarding-header"><span className="muted">STEP {step + 1} OF 5</span></header>
+    <div className="onboarding-progress"><div style={{ width: `${(step + 1) * 20}%` }} /></div>
+    <p className="planning-eyebrow">MAKE MEALDEAL YOURS</p>
+    <h1>{headings[step]}</h1>
+    {step === 0 && <section className="onboarding-section">
       <p className="muted">Choose how recipe quantities are displayed. MealDeal currently uses English.</p>
       <label className="field">Weight unit<select value={profile.units.weight} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, weight: event.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams (g)</option><option value="kg">kilograms (kg)</option><option value="lb">pounds (lb)</option><option value="oz">ounces (oz)</option><option value="jin">jin (500 g)</option></select></label>
       <label className="field">Volume unit<select value={profile.units.volume} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, volume: event.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres (ml)</option><option value="l">litres (l)</option><option value="cup">cups</option><option value="fl_oz">fluid ounces (fl oz)</option></select></label>
     </section>}
-    {step === 1 && <section className="card">
+    {step === 1 && <section className="onboarding-section">
       <p className="muted">Rules every plan must follow. You pick cuisines and the meat/veg balance each time you plan.</p>
-      <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}</label>
-      <label className="field">Allergies<Chips values={options.allergies} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /></label>
-      <label className="field">People I usually cook for<input type="number" min="1" max="20" aria-invalid={Boolean(fields.defaultServings)} value={Number.isFinite(profile.defaultServings) ? profile.defaultServings : ""} onChange={(event) => { setProfile({ ...profile, defaultServings: event.target.value === "" ? Number.NaN : Number(event.target.value) }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}</label>
+      <div className="field" role="group" aria-label="Dietary needs">Dietary needs<Chips values={options.dietary} custom={custom.dietary} onRemove={(value) => { dropCustom("dietary", value); note("dietary")(`${value} removed.`); setProfile(withDietary(profile, profile.dietary.filter((item) => item !== value))); }} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}<OtherInput label="dietary need" values={[...options.dietary, ...custom.dietary]} selected={profile.dietary} note={notes.dietary ?? ""} onNote={note("dietary")} onAdd={(value) => addCustom("dietary", value)} onSelect={(value) => setProfile(withDietary(profile, profile.dietary.includes(value) ? profile.dietary : [...profile.dietary, value]))} /></div>
+      <div className="field" role="group" aria-label="Allergies">Allergies<Chips values={options.allergies} custom={custom.allergies} onRemove={(value) => { dropCustom("allergies", value); note("allergies")(`${value} removed.`); setProfile({ ...profile, allergies: profile.allergies.filter((item) => item !== value) }); }} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /><OtherInput label="allergy" values={[...options.allergies, ...custom.allergies]} selected={profile.allergies} note={notes.allergies ?? ""} onNote={note("allergies")} onAdd={(value) => addCustom("allergies", value)} onSelect={(value) => setProfile({ ...profile, allergies: profile.allergies.includes(value) ? profile.allergies : [...profile.allergies, value] })} /></div>
+      <RangeField id="default-servings" label="People I usually cook for" value={profile.defaultServings} min={1} max={8} onChange={(defaultServings) => { setProfile({ ...profile, defaultServings }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}
     </section>}
-    {step === 2 && <section className="card"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /></section>}
-    {step === 3 && <section className="card">
+    {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} custom={custom.equipment} onRemove={(value) => { dropCustom("equipment", value); note("equipment")(`${value} removed.`); setProfile({ ...profile, equipment: profile.equipment.filter((item) => item !== value) }); }} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput label="equipment" values={[...options.equipment, ...custom.equipment]} selected={profile.equipment} note={notes.equipment ?? ""} onNote={note("equipment")} onAdd={(value) => addCustom("equipment", value)} onSelect={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
+    {step === 3 && <section className="onboarding-section">
       <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
-      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, border: "1px solid #cbd7ce", borderRadius: 14, padding: 13 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
-      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => {
+      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" className="text-input" style={{ flex: 1, minWidth: 0 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn secondary" type="button" disabled={!newItem.trim()} onClick={addPantry}>Add</button></div>
+      <span className="muted" role="status" style={{ display: "block", fontSize: 14, minHeight: 20, marginTop: 6 }}>{notes.pantry ?? ""}</span>
+      <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{pantry.map((item, index) => {
         const kind = item.kind ?? guessPantryKind(item.name);
         const amount: PantryAmount = item.amount ?? "unknown";
-        return <div key={`${item.name}-${index}`} style={{ display: "grid", gap: 8, padding: "10px 0", borderBottom: "1px solid #edf0eb" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <span><b>{item.name}</b>{item.qtyG > 0 && <span className="muted"> · {item.qtyG} g</span>}</span>
-            <span style={{ display: "flex", gap: 6 }}>
-              <button type="button" className="chip" onClick={() => updatePantry(index, { kind: kind === "seasoning" ? "ingredient" : "seasoning" })}>{kind === "seasoning" ? "Seasoning" : "Ingredient"} ⇄</button>
-              <button type="button" className="chip" onClick={() => setPantry(pantry.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
-            </span>
+        return <div key={`${item.name}-${index}`} className="pantry-item">
+          <div className="pantry-item-head">
+            <b>{item.name}{item.qtyG > 0 && <span className="muted" style={{ fontWeight: 400 }}> · {item.qtyG} g</span>}</b>
+            <button type="button" className="icon-btn" aria-label={`Remove ${item.name}`} onClick={() => removePantry(index)}><Trash2 size={18} /></button>
+          </div>
+          <div className="segmented" role="group" aria-label={`${item.name} is a`}>
+            {(["ingredient", "seasoning"] as const).map((value) => <button type="button" key={value} aria-pressed={kind === value} onClick={() => updatePantry(index, { kind: value })}>{value === "ingredient" ? "Ingredient" : "Seasoning"}</button>)}
           </div>
           {kind === "seasoning"
-            ? <span className="muted" style={{ fontSize: 14 }}>Have it. Recipes only use a little.</span>
-            : <div className="chips" role="group" aria-label={`How much ${item.name}`}>{PANTRY_AMOUNTS.map((option) => <button type="button" key={option.value} aria-pressed={amount === option.value} className={`chip ${amount === option.value ? "active" : ""}`} onClick={() => updatePantry(index, { amount: option.value, qtyG: 0 })}>{option.label}</button>)}</div>}
+            ? <span className="muted" style={{ fontSize: 14 }}>Have it. Recipes only use a little, so we never buy more.</span>
+            : <div className="segmented segmented-4" role="group" aria-label={`How much ${item.name}`}>{PANTRY_AMOUNTS.map((option) => <button type="button" key={option.value} aria-pressed={amount === option.value} onClick={() => updatePantry(index, { amount: option.value, qtyG: 0 })}>{option.label}</button>)}</div>}
         </div>;
       })}</div>
       {fields._ && <p style={fieldErrorStyle}>{fields._}</p>}
     </section>}
-    {step === 4 && <section className="card">
-      <label className="field">Maximum shopping distance: {profile.maxDistanceKm} km<input type="range" min="0.5" max="15" step="0.5" value={profile.maxDistanceKm} onChange={(event) => setProfile({ ...profile, maxDistanceKm: Number(event.target.value) })} /></label>
-      <label className="field">Optional nutrition goal<textarea rows={3} placeholder="e.g. prioritize protein" value={profile.nutritionGoal} onChange={(event) => setProfile({ ...profile, nutritionGoal: event.target.value })} /></label>
+    {step === 4 && <section className="onboarding-section">
+      <div className="field" role="group" aria-label="Where you shop from">Where do you shop from?
+        <p className="muted" style={{ margin: 0, fontWeight: 400, fontSize: 15 }}>We use this to pick stores within your distance. Only an area (about 100 m) is saved.</p>
+        <button type="button" className="btn secondary" disabled={locating} onClick={setFromCurrentLocation}><LocateFixed aria-hidden="true" />{locating ? "Finding you…" : "Use my location"}</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input className="text-input" style={{ flex: 1, minWidth: 0 }} aria-label="Postal code" placeholder="or postal code, e.g. V6T 1Z4" maxLength={7} value={postal}
+            onChange={(event) => setPostal(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void setFromPostal(); } }} />
+          <button type="button" className="btn secondary" disabled={locating || !postal.trim()} onClick={() => void setFromPostal()}>Set</button>
+        </div>
+        <span className="muted" role="status" style={{ fontWeight: 400, fontSize: 14, minHeight: 20 }}>{placeNote || (profile.home ? "Shopping area saved." : "No shopping area yet: plans use stores near UBC.")}</span>
+        {profile.home && <button type="button" className="btn text" style={{ justifySelf: "start" }} onClick={() => { setProfile({ ...profile, home: null }); setPlaceNote("Shopping area cleared."); }}>Clear shopping area</button>}
+      </div>
+      <RangeField id="max-distance" label="Shopping distance" value={profile.maxDistanceKm} min={0.5} max={15} step={0.5} format={(value) => `${value} km`} onChange={(maxDistanceKm) => setProfile({ ...profile, maxDistanceKm })} />
+      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
     </section>}
     {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
     <footer style={{ display: "flex", gap: 10, marginTop: 26 }}>
-      {step > 0 && <button className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>Back</button>}
-      <button className="btn" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>
+      {step > 0 && <button type="button" className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>← Previous</button>}
+      <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>
     </footer>
   </main>;
 }

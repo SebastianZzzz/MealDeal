@@ -1,38 +1,35 @@
 import Link from "next/link";
-import { getIdentity } from "@/lib/session";
-import { isAuth0Configured } from "@/lib/env";
+import { ArrowRight, Camera, HeartHandshake } from "lucide-react";
 
-export default async function Home() {
-  const user = await getIdentity();
-  const authReady = isAuth0Configured();
+export default function Home() {
   return (
-    <main className="page" style={{ display: "grid", alignContent: "space-between", gap: 36 }}>
-      <section style={{ paddingTop: 22 }}>
-        <div style={{ fontWeight: 900, fontSize: 21 }}>Meal<span style={{ color: "var(--green)" }}>Deal</span></div>
-        <div style={{ marginTop: 55 }}>
-          <p style={{ color: "var(--green)", fontWeight: 800 }}>Your budget. Real local prices.</p>
-          <h1 style={{ fontSize: 47, lineHeight: .98, letterSpacing: "-2.5px", margin: "12px 0 18px" }}>How are you eating today?</h1>
-          <p className="muted">We turn this week&apos;s affordable groceries into meals you can actually make.</p>
-        </div>
-      </section>
-      <section style={{ display: "grid", gap: 12 }}>
-        <Link className="btn secondary" href="/report">Snap a price tag</Link>
-        <Link className="btn" href="/cook">Cook at home</Link>
-        <Link className="btn" href="/eat-out">Eat Out</Link>
-        <Link className="btn" href="/support">Need food support?</Link>
-        {user?.sub === "demo|student" ? (
-          <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Local demo mode</p>
-        ) : user ? (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <Link className="muted" href="/onboarding">Update my kitchen</Link>
-            <a className="muted" href="/auth/logout">Log out</a>
+    <main className="page home-page">
+      <p className="planning-eyebrow" style={{ marginTop: 4 }}>Vancouver · this week&apos;s prices</p>
+      <h1 className="home-title">How are you<br />eating today?</h1>
+
+      <div className="home-grid">
+        <Link className="home-card" href="/cook">
+          <div className="meal-art meal-art-cook" role="img" aria-label="A warm bowl of noodles with vegetables" />
+          <div className="home-card-label">
+            <div><strong>Cook at home</strong><span>Meals built around what&apos;s on sale</span></div>
+            <span className="home-card-go" aria-hidden="true"><ArrowRight size={20} /></span>
           </div>
-        ) : authReady ? (
-          <a className="muted" style={{ textAlign: "center", marginTop: 8 }} href="/auth/login?returnTo=/cook">Log in with Auth0</a>
-        ) : (
-          <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Auth0 environment variables are required to log in.</p>
-        )}
-      </section>
+        </Link>
+        <Link className="home-card" href="/eat-out">
+          <div className="meal-art meal-art-out" role="img" aria-label="A tray of prepared food" />
+          <div className="home-card-label">
+            <div><strong>Eat out</strong><span>End-of-day meals for less</span></div>
+            <span className="home-card-go" aria-hidden="true"><ArrowRight size={20} /></span>
+          </div>
+        </Link>
+        <Link className="home-row" href="/support">
+          <HeartHandshake size={24} aria-hidden="true" />
+          <span>Need food support?<small>Food banks, free meals and fridges nearby</small></span>
+          <ArrowRight size={20} aria-hidden="true" />
+        </Link>
+      </div>
+
+      <Link className="fab" href="/report"><Camera size={22} aria-hidden="true" />Share a price</Link>
     </main>
   );
 }

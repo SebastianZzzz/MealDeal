@@ -1,5 +1,130 @@
 [
-  { "id": "sample-village-bakery", "merchantName": "Village Bakery (sample)", "address": "UBC Village area, Vancouver — sample location", "lat": 49.266, "lng": -123.243, "title": "Bread & pastry bag", "origPrice": 12, "price": 4, "qtyLeft": 3, "allergens": ["wheat", "milk", "eggs"], "description": "An illustrative bakery bundle. This merchant and offer are fictional." },
-  { "id": "sample-campus-kitchen", "merchantName": "Campus Kitchen (sample)", "address": "West Mall area, Vancouver — sample location", "lat": 49.261, "lng": -123.253, "title": "Vegetable rice bowl", "origPrice": 10, "price": 3.5, "qtyLeft": 2, "allergens": ["soy", "sesame"], "description": "An illustrative prepared meal. This merchant and offer are fictional." },
-  { "id": "sample-neighbourhood-cafe", "merchantName": "Neighbourhood Cafe (sample)", "address": "University Boulevard area, Vancouver — sample location", "lat": 49.266, "lng": -123.237, "title": "Soup & sandwich set", "origPrice": 14, "price": 5, "qtyLeft": 1, "allergens": ["wheat", "milk"], "description": "An illustrative cafe meal. This merchant and offer are fictional." }
+  {
+    "id": "sample-village-bakery",
+    "merchantName": "Village Bakery (sample)",
+    "address": "UBC Village area, Vancouver — sample location",
+    "lat": 49.266,
+    "lng": -123.243,
+    "title": "Bread & pastry bag",
+    "origPrice": 12,
+    "price": 4,
+    "qtyLeft": 3,
+    "allergens": [
+      "wheat",
+      "milk",
+      "eggs"
+    ],
+    "description": "An illustrative bakery bundle. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-campus-kitchen",
+    "merchantName": "Campus Kitchen (sample)",
+    "address": "West Mall area, Vancouver — sample location",
+    "lat": 49.261,
+    "lng": -123.253,
+    "title": "Vegetable rice bowl",
+    "origPrice": 10,
+    "price": 3.5,
+    "qtyLeft": 2,
+    "allergens": [
+      "soy",
+      "sesame"
+    ],
+    "description": "An illustrative prepared meal. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-neighbourhood-cafe",
+    "merchantName": "Neighbourhood Cafe (sample)",
+    "address": "University Boulevard area, Vancouver — sample location",
+    "lat": 49.266,
+    "lng": -123.237,
+    "title": "Soup & sandwich set",
+    "origPrice": 14,
+    "price": 5,
+    "qtyLeft": 1,
+    "allergens": [
+      "wheat",
+      "milk"
+    ],
+    "description": "An illustrative cafe meal. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-noodle-bar",
+    "merchantName": "Noodle Bar (sample)",
+    "address": "Wesbrook Village, Vancouver — sample location",
+    "lat": 49.2527,
+    "lng": -123.2367,
+    "title": "Beef noodle soup",
+    "origPrice": 14,
+    "price": 6,
+    "qtyLeft": 4,
+    "allergens": [
+      "wheat",
+      "soy"
+    ],
+    "description": "An illustrative end-of-day bowl. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-bento-house",
+    "merchantName": "Bento House (sample)",
+    "address": "University Boulevard, Vancouver — sample location",
+    "lat": 49.2661,
+    "lng": -123.2449,
+    "title": "Teriyaki chicken bento",
+    "origPrice": 15,
+    "price": 6.5,
+    "qtyLeft": 5,
+    "allergens": [
+      "soy",
+      "wheat",
+      "sesame"
+    ],
+    "description": "An illustrative bento box. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-curry-corner",
+    "merchantName": "Curry Corner (sample)",
+    "address": "UBC Village area, Vancouver — sample location",
+    "lat": 49.2654,
+    "lng": -123.2425,
+    "title": "Chickpea curry with rice",
+    "origPrice": 12,
+    "price": 5,
+    "qtyLeft": 6,
+    "allergens": [],
+    "description": "An illustrative vegan curry. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-green-bowl",
+    "merchantName": "Green Bowl (sample)",
+    "address": "Agronomy Road, Vancouver — sample location",
+    "lat": 49.2609,
+    "lng": -123.2481,
+    "title": "Quinoa salad bowl",
+    "origPrice": 13,
+    "price": 5,
+    "qtyLeft": 3,
+    "allergens": [
+      "sesame"
+    ],
+    "description": "An illustrative salad bowl. This merchant and offer are fictional."
+  },
+  {
+    "id": "sample-campus-sushi",
+    "merchantName": "Campus Sushi (sample)",
+    "address": "Student Union Boulevard, Vancouver — sample location",
+    "lat": 49.2668,
+    "lng": -123.2493,
+    "title": "Sushi roll box",
+    "origPrice": 11,
+    "price": 4.5,
+    "qtyLeft": 4,
+    "allergens": [
+      "fish",
+      "soy",
+      "wheat",
+      "sesame"
+    ],
+    "description": "An illustrative sushi box. This merchant and offer are fictional."
+  }
 ]

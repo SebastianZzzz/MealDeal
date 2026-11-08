@@ -11,6 +11,11 @@ import type { PlanningResponse } from "@/contracts/planning-api";
 import { adaptPantry, adaptProfile } from "./adapter";
 import { useSaved } from "./use-saved";
 import { plural } from "@/lib/plural";
+import { ScreenHeader } from "@/components/screen-header";
+import { RangeField } from "@/components/range-field";
+
+// The top of the cooking-time slider means "no limit", so plans are not cut short by default.
+const ANY_TIME = 125;
 
 const CUISINES = ["Chinese", "Korean", "Japanese", "Indian", "Italian", "Mexican", "Thai", "Vietnamese"];
 const PREFS_KEY = "mealdeal.planPrefs";
@@ -100,39 +105,36 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
 
   const count = duration === "one_meal" ? 1 : (duration === "week" ? 7 : Number(days)) * Number(meals);
   return <main className="page planning-page">
-    <Link className="planning-back" href="/cook">← Your kitchen</Link>
-    <p className="planning-eyebrow">COOK AT HOME · 1 OF 3</p>
-    <h1>Good meals.<br />Within your budget.</h1>
-    <p className="muted">Start with what you can spend. We&apos;ll build complete meals around affordable ingredients.</p>
+    <ScreenHeader backHref="/cook" />
+    <p className="planning-eyebrow">COOK AT HOME / PLAN</p>
+    <h1>Plan a meal</h1>
     <form onSubmit={submit} aria-busy={busy}>
       <fieldset disabled={busy} className="planning-fieldset">
-        <section className="card planning-section">
-          <label className="field planning-budget">Total shopping budget (CAD)<div className="planning-currency"><span aria-hidden="true">$</span><input aria-label="Total shopping budget in Canadian dollars" type="number" min="0" max="10000" step="0.01" required value={budget} onChange={(event) => setBudget(event.target.value)} /></div></label>
-          <p className="muted planning-small">For the whole plan, including full packages. Pantry ingredients cost $0 today.</p>
-          <label className="field">People per meal<input type="number" min="1" max="20" step="1" required value={servings} onChange={(event) => setServings(event.target.value)} /></label>
+        <section className="planning-section planning-plain">
+          <RangeField id="plan-budget" label="Budget · CAD" value={Number(budget)} min={5} max={150} format={(value) => `$${value}`} onChange={(value) => setBudget(String(value))} />
+          <RangeField id="plan-people" label="People" value={Number(servings)} min={1} max={8} onChange={(value) => setServings(String(value))} />
         </section>
-        <section className="card planning-section">
-          <label className="field">Plan for<select value={duration} onChange={(event) => setDuration(event.target.value)}><option value="one_meal">One meal</option><option value="days">A few days</option><option value="week">One week</option></select></label>
+        <section className="planning-section planning-plain">
+          <div className="field" role="group" aria-label="Plan length">Plan length<div className="chips">{[["one_meal", "One meal"], ["days", "A few days"], ["week", "A week"]].map(([value, label]) => <button type="button" key={value} className="chip" aria-pressed={duration === value} onClick={() => setDuration(value)}>{label}</button>)}</div></div>
           {duration !== "one_meal" && <div className="planning-grid">
-            {duration === "days" && <label className="field">Days<input type="number" min="1" max="7" required value={days} onChange={(event) => setDays(event.target.value)} /></label>}
+            {duration === "days" && <label className="field">Days<select value={days} onChange={(event) => setDays(event.target.value)}>{["2", "3", "4", "5", "6"].map((value) => <option key={value} value={value}>{value} days</option>)}</select></label>}
             <label className="field">Meals each day<select value={meals} onChange={(event) => setMeals(event.target.value)}><option value="1">Dinner</option><option value="2">Lunch + dinner</option><option value="3">Breakfast + lunch + dinner</option></select></label>
           </div>}
           <label className="planning-toggle"><input type="checkbox" checked={batchCook} onChange={(event) => setBatchCook(event.target.checked)} /><span><strong>Cook once, eat a few times</strong><small className="muted">Make extra portions and reuse ingredients.</small></span></label>
           <p className="planning-small muted">{plural(count, "meal")} · {plural(Number(servings) * count, "total portion")}</p>
         </section>
-        <section className="card planning-section">
-          <h2>Make it yours</h2>
+        <section className="planning-section planning-plain">
           {vegetarianDiet
             ? <p className="field">Meal balance<span className="muted">Vegetarian, from your dietary needs.</span></p>
             : <label className="field">Meal balance<select value={meatVeg} onChange={(event) => setMeatVeg(event.target.value as MeatVeg)}><option value="mostly_meat">More meat</option><option value="balanced">Balanced</option><option value="mostly_veg">More vegetables</option><option value="vegetarian">Vegetarian this time</option></select></label>}
-          <div className="field" role="group" aria-label="Cuisines">Cuisines<div className="chips">{CUISINES.map((cuisine) => <button type="button" key={cuisine} aria-pressed={cuisines.includes(cuisine)} className={`chip ${cuisines.includes(cuisine) ? "active" : ""}`} onClick={() => setCuisines(cuisines.includes(cuisine) ? cuisines.filter((item) => item !== cuisine) : [...cuisines, cuisine])}>{cuisine}</button>)}</div><small className="muted">{cuisines.length ? "We'll mix these in where the prices work." : "No preference: any cuisine."}</small></div>
-          <label className="field">Maximum cooking time (optional)<input type="number" min="1" max="240" value={maxMinutes} onChange={(event) => setMaxMinutes(event.target.value)} placeholder="Minutes per recipe" /></label>
+          <div className="field" role="group" aria-label="Cuisines">Cuisines<div className="chips">{CUISINES.map((cuisine) => <button type="button" key={cuisine} aria-pressed={cuisines.includes(cuisine)} className="chip" onClick={() => setCuisines(cuisines.includes(cuisine) ? cuisines.filter((item) => item !== cuisine) : [...cuisines, cuisine])}>{cuisine}</button>)}</div><small className="muted">{cuisines.length ? "We'll mix these in where the prices work." : "No preference: any cuisine."}</small></div>
+          <RangeField id="plan-time" label="Cooking time" value={maxMinutes ? Number(maxMinutes) : ANY_TIME} min={10} max={ANY_TIME} step={5} buttonStep={5} format={(value) => value >= ANY_TIME ? "Any length" : `${value} min`} onChange={(value) => setMaxMinutes(value >= ANY_TIME ? "" : String(value))} />
           <label className="field">Anything else?<textarea value={note} maxLength={1000} rows={3} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Something spicy, please" /></label>
           <p className="planning-small muted">Your saved allergies and dietary needs apply to every option.</p>
         </section>
       </fieldset>
       {error && <p className="planning-error" role="alert">{error}</p>}
-      <button className="btn planning-full" disabled={busy} type="submit">{busy ? "Finding affordable meals…" : "Find my meal options →"}</button>
+      <button className="btn primary planning-full" disabled={busy} type="submit">{busy ? "Finding affordable meals…" : "Find my meal options →"}</button>
       {busy && <p className="muted planning-small" role="status">This usually takes about 15 seconds. We&apos;re checking ingredients, full-package costs and every meal. It may take longer when the service is busy.</p>}
     </form>
   </main>;

@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "latest",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.468.0",
     "next": "latest",
     "pg": "^8.23.1",
     "react": "latest",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
+    "@types/leaflet": "^1.9.12",
     "@types/node": "latest",
     "@types/pg": "^8.23.1",
     "@types/react": "latest",

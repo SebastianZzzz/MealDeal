@@ -23,6 +23,7 @@ export function adaptProfile(profile: LegacyProfile): UserProfile {
     meatVeg: profile.dietary.some((item) => /^(vegetarian|vegan)$/i.test(item)) ? "vegetarian" : meatVegNames[profile.meatVegRatio],
     defaultServings: profile.defaultServings,
     equipment: [...new Set(equipment)], maxDistanceKm: profile.maxDistanceKm,
+    ...(profile.home ? { home: profile.home } : {}),
     nutritionGoal: /protein/i.test(profile.nutritionGoal) ? "high_protein" : "none",
   };
 }
