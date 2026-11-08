@@ -107,6 +107,12 @@ Multi-step screens (onboarding, plan, shopping, Eat Out) put their main actions 
 - **Order:** secondary on the left (Previous / Skip), primary on the right and wider (Continue / Save changes).
 - One step = one topic. Unrelated settings get their own step (Nutrition goal is separate from Shopping range), so most steps fit on one phone screen.
 
+### Checkboxes and switches
+No square boxes anywhere.
+- **List tick** (shopping list): plain `input[type=checkbox]`, a 26px circle; checked = green fill with a white tick.
+- **On/off setting** (Cook once, eat a few times; On sale): `input[type=checkbox].switch` with `role="switch"`, a 48×28 pill with a sliding knob, placed on the right of its label.
+- Show a setting only when it applies (batch cooking appears only for Multiple meals, and is sent as off for One meal).
+
 ### Chips: multi-select (`.chip`)
 For choices where several can be on: dietary needs, allergies, cuisines, equipment, filters.
 - Pill, 44px, white with a `--line-strong` outline.

@@ -20,6 +20,8 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, animate = tru
   const markers = useRef<Map<string, Marker>>(new Map());
   const circle = useRef<Circle | null>(null);
   const select = useRef(onSelect);
+  const latest = useRef(points);
+  useEffect(() => { latest.current = points; }, [points]);
   useEffect(() => { select.current = onSelect; }, [onSelect]);
 
   // Create the map once.
@@ -33,7 +35,11 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, animate = tru
       const motion = animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       // A location step can unmount immediately after a radius change. Disable its
       // zoom transition so Leaflet cannot finish a timer against removed map panes.
-      map.current = L.map(element.current, { scrollWheelZoom: false, zoomAnimation: motion, fadeAnimation: motion }).setView([49.265, -123.17], 12);
+      map.current = L.map(element.current, { scrollWheelZoom: false, zoomAnimation: motion, fadeAnimation: motion });
+      // Start at the supplied points; only an empty map needs the city fallback.
+      if (!latest.current.length) {
+        map.current.setView([49.265, -123.17], 12);
+      }
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
@@ -70,7 +76,8 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, animate = tru
       if (radiusKm && points.length === 1) {
         // A distance setting: show the whole circle so the slider visibly changes the map.
         circle.current = L.circle([points[0].lat, points[0].lng], { radius: radiusKm * 1000, color: "#00704a", weight: 2, fillOpacity: 0.08 }).addTo(map.current);
-        map.current.fitBounds(circle.current.getBounds(), { padding: [12, 12] });
+        // Geographic bounds work before the map has its first projected view.
+        map.current.fitBounds(L.latLng(points[0].lat, points[0].lng).toBounds(radiusKm * 2000), { padding: [12, 12] });
       } else if (points.length > 1) {
         map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
       } else if (points.length === 1) {
