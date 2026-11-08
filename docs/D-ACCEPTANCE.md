@@ -1,7 +1,7 @@
 # D acceptance and demo rehearsal
 
 This is a manual acceptance script, not a claim that these checks have passed.
-Use the integrated team build for C's pages; this D branch does not merge them.
+Use the integrated team build with A's database foundation and C's pages.
 
 ## Cooking: required demo path
 
@@ -52,10 +52,12 @@ Use the integrated team build for C's pages; this D branch does not merge them.
 - Deny location: browsing by price remains available. Deny storage: do not report
   a successful reservation. Sample labels must remain visible.
 
-## Shared database: pending A's adapter
+## Shared database: requires configuration and C's persisted-plan handoff
 
-1. A applies the reviewed schema and connects `getDDatabase()` to its shared pool.
-   A/C insert a real owned plan using Auth0 `sub` as `user_id`.
+1. A applies the canonical migrations and configures `DATABASE_URL`. D already
+   reuses A's pool. A/C insert a UUID plan using `users.id` as `user_id` and
+   persist the shopping-complete state. `users.auth0_id` holds the Auth0 sub.
+   C saves that returned plan UUID and database user UUID in the browser plan.
 2. With no sign-in, posting, reserving and cooking sync must return 401.
 3. With a signed-in owner, save then restore progress in a separate browser.
    A different account must receive 404 for that plan, never its recipe data.
@@ -66,6 +68,11 @@ Use the integrated team build for C's pages; this D branch does not merge them.
    success. Refresh/list requests must reflect stock across devices.
 6. Force another plan update between the progress read and write; the stale
    update must return 409 and preserve shopping data.
+7. Attempt account sync with an old option/local ID or reserve with a malformed
+   UUID. Return 400 without a database query; local cooking must still work.
+8. Post through `/eat-out/shared/post`. Check that the row saves without a
+   `posted_by` column and keeps `is_sample = true`. Database `updated_at` must
+   change when stock/progress changes. `/eat-out` remains the local demo.
 
 ## Backup demo
 

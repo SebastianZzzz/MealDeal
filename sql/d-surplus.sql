@@ -1,22 +1,27 @@
--- D's proposed schema for A's Tiger Data/PostgreSQL adapter.
--- Reviewed source only: this migration has NOT been applied to any database.
--- Auth0 IDs are text. No merchant accounts, payments, images, or reservation roster.
-CREATE TABLE IF NOT EXISTS surplus_listings (
-  id text PRIMARY KEY,
-  merchant_name text NOT NULL CHECK (length(merchant_name) BETWEEN 1 AND 100),
-  address text NOT NULL CHECK (length(address) BETWEEN 1 AND 300),
-  lat double precision NOT NULL CHECK (lat BETWEEN -90 AND 90),
-  lng double precision NOT NULL CHECK (lng BETWEEN -180 AND 180),
-  title text NOT NULL CHECK (length(title) BETWEEN 1 AND 150),
-  orig_price numeric(10,2) NOT NULL CHECK (orig_price >= 0),
-  price numeric(10,2) NOT NULL CHECK (price >= 0 AND price <= orig_price),
-  qty_left integer NOT NULL CHECK (qty_left BETWEEN 0 AND 10000),
-  pickup_start timestamptz NOT NULL,
-  pickup_end timestamptz NOT NULL CHECK (pickup_end > pickup_start),
-  allergens text[] NOT NULL DEFAULT '{}',
+-- Reference only: A owns db/migrations/20261107201500_shared_app.sql.
+-- Apply canonical migrations with the shared runner, not this file separately.
+-- UUID IDs; no posted_by column or merchant account. D explicitly inserts is_sample=true.
+create table if not exists surplus_listings (
+  id uuid primary key default gen_random_uuid(),
+  merchant_name text not null,
+  address text not null,
+  lat double precision not null,
+  lng double precision not null,
+  title text not null,
+  orig_price numeric(10, 2) not null check (orig_price >= 0),
+  price numeric(10, 2) not null check (price >= 0),
+  qty_left integer not null check (qty_left >= 0),
+  pickup_start timestamptz not null,
+  pickup_end timestamptz not null,
+  allergens text[] not null default '{}',
   description text,
-  is_sample boolean NOT NULL DEFAULT true,
-  posted_by text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+  is_sample boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (pickup_end > pickup_start),
+  check (price <= orig_price)
 );
-CREATE INDEX IF NOT EXISTS surplus_available_idx ON surplus_listings (pickup_end, price) WHERE qty_left > 0;
+
+create index if not exists surplus_listings_pickup_qty_idx
+  on surplus_listings(pickup_start, qty_left)
+  where qty_left > 0;

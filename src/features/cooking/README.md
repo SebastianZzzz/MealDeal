@@ -40,13 +40,13 @@ or millilitres as grams without an agreed mapping from B/C.
 C owns navigation from `/cook/shopping` to `/cook/cooking` and writing the
 `mealdeal.currentPlan` key. The older C branch used a different key and a
 `/cook/ready` handoff; this implementation follows the superseding team update.
-A owns Auth0 and the later Tiger Data adapter at `src/lib/db.ts`. This change
+A owns Auth0 and the shared Tiger Data adapter at `src/lib/db.ts`. D
 adds owner-scoped `GET/PATCH /api/cooking/[id]` endpoints and explicit account
 save/restore actions. They require Auth0 and A's database adapter; they return
 401 when signed out and 503 when shared storage is disconnected. Local saving
 continues independently. D never inserts C's plans or changes their shopping
 data. See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md) for the
-expected schema and connection point. No image storage or new identity provider
+UUID ownership mapping and C's persisted-plan prerequisite. No image storage or new identity provider
 is added.
 
 ## Verification
