@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
 import { GRAMS_PER, type MealPlan, type UnitPrefs, type WeightUnit } from "@/types";
@@ -127,8 +126,8 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
   if (!view.ready) return <main className={styles.page}><p className={styles.eyebrow}>MEALDEAL / YOUR KITCHEN</p><h1>Getting your kitchen ready…</h1></main>;
 
   return <main className={styles.page}>
+    {/* The app's top bar already shows the brand; this header only names the mode. */}
     <header className={styles.header}>
-      <Link href="/" className={styles.brand} aria-label="MealDeal home"><span className={styles.brandMark}><Image src="/images/mealdeal-logo.svg" alt="" width={28} height={28} priority /></span>Meal<span>Deal</span></Link>
       <span className={styles.stage}><span /> COOKING MODE</span>
     </header>
 
