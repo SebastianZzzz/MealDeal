@@ -8,6 +8,7 @@ import { makeSurplusClient, type InventorySource } from "./client";
 import { distanceKm, SURPLUS_KEY } from "./inventory";
 import styles from "../community.module.css";
 import { ScreenHeader } from "@/components/screen-header";
+import { DishArt } from "./dish-art";
 
 const money = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
 const pickup = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Vancouver", timeZoneName: "short" }).format(new Date(value));
@@ -74,6 +75,7 @@ export function SurplusView({ source = "local" }: { source?: InventorySource }) 
     <div className={styles.cards}>{sorted.map((item) => {
       const expired = Date.parse(item.pickupEnd) <= now;
       return <article key={item.id} className={styles.card}>
+        <DishArt id={item.id} title={item.title} />
         {item.isSample && <span className={styles.tag}>SAMPLE DATA</span>}<span className={styles.tag}>{expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : `${item.qtyLeft} left`}</span>
         <h2>{item.title}</h2><p className={styles.address}>{item.merchantName}<br />{item.address}{origin && <><br />{distanceKm(origin, item).toFixed(1)} km away · straight-line estimate</>}</p>
         <dl><dt>Pickup window · Vancouver time</dt><dd>{pickup(item.pickupStart)} – {pickup(item.pickupEnd)}</dd><dt>Allergen information</dt><dd>{item.allergens.length ? item.allergens.join(", ") : "No allergens declared; this does not mean allergen-free."} Confirm ingredients and cross-contact with the merchant.</dd></dl>

@@ -5,7 +5,7 @@
 - `/eat-out` browses listings by price or straight-line distance after an explicit
   user request for location. Denied location leaves price browsing available.
 - `/eat-out/post` publishes a sample listing without merchant sign-in.
-- `mock/surplus-listings.json` contains three fictional merchants. Their initial
+- `mock/surplus-listings.json` contains eight fictional merchants. Their initial
   pickup windows are derived from first initialization and then persisted.
 - The shared `SurplusListing` type is imported from `@/types` unchanged.
 - Every locally posted listing is forced to `isSample: true`; seed and posted
@@ -16,7 +16,7 @@
 
 ## Inventory guarantee
 
-Inventory lives under `mealdeal.surplus.v1` in localStorage. Initialization,
+Inventory lives under `mealdeal.surplus.v2` in localStorage. Initialization,
 posting, and reservation all acquire the same exclusive Web Lock. Inside the
 lock, reservation reads the latest inventory, rejects missing/expired/sold-out
 listings, checks `qtyLeft > 0`, decrements exactly once, and persists before

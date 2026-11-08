@@ -187,7 +187,7 @@ export function ReportForm() {
           </ul>
         </section>
         <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
-          <Link className="btn" href="/cook">Plan a meal with these prices</Link>
+          <Link className="btn primary" href="/cook">Plan a meal with these prices</Link>
           <button className="btn secondary" onClick={() => setSaved(null)}>Report another price</button>
         </div>
       </main>
@@ -201,7 +201,7 @@ export function ReportForm() {
       <h1>Snap a price tag.</h1>
       <p className="muted">We read the tag and work out the price per 100 g. Your photo is not saved.</p>
 
-      <label className="btn" style={{ width: "100%", marginTop: 16, opacity: reading ? 0.6 : 1 }}>
+      <label className="btn primary" style={{ width: "100%", marginTop: 16, opacity: reading ? 0.6 : 1 }}>
         {reading ? "Reading the tag…" : items.length ? "Take another photo" : "Take a photo"}
         <input
           type="file"
@@ -260,7 +260,7 @@ export function ReportForm() {
           </label>
           <p className="muted" style={{ margin: "8px 0 0" }}>{locationNote}</p>
           <label className="field">Date seen<input type="date" value={date} max={todayInVancouver()} onChange={(e) => setDate(e.target.value)} /></label>
-          <button className="btn" style={{ width: "100%", marginTop: 18 }} disabled={saving || !storeId || readyCount === 0} onClick={submit}>
+          <button type="button" className="btn primary" style={{ width: "100%", marginTop: 18 }} disabled={saving || !storeId || readyCount === 0} onClick={submit}>
             {saving ? "Saving…" : `Share ${readyCount} price${readyCount === 1 ? "" : "s"}`}
           </button>
           <p className="muted" style={{ fontSize: 16 }}>Shared prices are shown to everyone as “community-reported” with the date.</p>

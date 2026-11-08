@@ -51,8 +51,8 @@ a { color: inherit; }
 .screen-back { display: inline-block; margin-top: 20px; color: var(--green); font-size: 11px; text-decoration: none; }
 .home-title { font-size: 38px !important; margin: 28px 0 18px !important; }
 .home-actions { display: grid; gap: 12px; }
-.meal-art { height: 168px; overflow: hidden; border-radius: 16px; border: 1px solid #e3dfca; background: #f3d28e url("/images/home-noodles.png") center / cover no-repeat; }
-.meal-art-out { margin-top: 6px; background-image: url("/images/home-bento.png"); }
+.meal-art { height: 168px; overflow: hidden; border-radius: 16px; border: 1px solid #e3dfca; background: #f3d28e url("/images/home-noodles.jpg") center / cover no-repeat; }
+.meal-art-out { margin-top: 6px; background-image: url("/images/home-bento.jpg"); }
 .home-button { width: 100%; }
 .home-support { margin-top: -2px; }
 .home-report { width: fit-content; margin-top: 8px; color: var(--green); font-size: 12px; font-weight: 700; text-decoration: none; }
@@ -132,3 +132,38 @@ a { color: inherit; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+/* Readability pass: phone text stays at 16px for body copy, 14px+ for labels and hints,
+   and every tap target is at least 44px. Primary actions are solid green so "Save" and
+   "Continue" stand apart from secondary buttons. */
+body { font-size: 16px; line-height: 1.5; }
+.muted { font-size: 16px; }
+.btn { font-size: 16px; font-weight: 700; min-height: 50px; }
+.btn.primary { background: var(--green); color: #fff; }
+.btn.primary:hover { background: var(--green-dark); }
+.field { font-size: 15px; }
+.field input, .field select, .field textarea { font-size: 16px; }
+.chip { font-size: 15px; min-height: 44px; }
+.chip[aria-pressed="true"] { border-color: var(--green); background: var(--green-pale); color: var(--green-dark); font-weight: 700; }
+.screen-header > span { font-size: 12px; font-weight: 700; letter-spacing: .8px; }
+.screen-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 10px; padding-right: 12px; font-size: 15px; font-weight: 700; }
+.planning-eyebrow, .onboarding-header > span { font-size: 12px; letter-spacing: 1.2px; }
+.planning-small, .planning-notice, .planning-leftovers, .planning-shopping-item small { font-size: 14px; }
+.planning-badge { font-size: 12px; }
+.planning-source { font-size: 13px; }
+.planning-shopping-item > strong { font-size: 16px; }
+.range-label { font-size: 15px; }
+.range-label b { font-size: 26px; }
+.range-row button { font-size: 15px; font-weight: 700; }
+.range-row button:active { background: var(--green); color: #fff; }
+.range-ends { font-size: 13px; }
+.home-report { font-size: 15px; min-height: 44px; display: inline-flex; align-items: center; }
+.home-footer { font-size: 14px; }
+.home-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Food support map */
+.support-map { height: 240px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--green-pale); margin: 18px 0; }
+.support-map .leaflet-container { height: 100%; width: 100%; font: inherit; }
+.map-pin { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--green); border: 2px solid #fff; box-shadow: 0 3px 10px rgb(24 53 45 / 30%); color: #fff; font-size: 13px; font-weight: 700; }
+.map-pin span { transform: rotate(45deg); }
+.map-pin.active { background: #c2491d; }

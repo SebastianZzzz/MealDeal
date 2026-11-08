@@ -68,7 +68,7 @@ export function OptionsView() {
       {option.nutritionTotal && <p className="planning-small">Plan nutrition: {Math.round(option.nutritionTotal.kcal)} kcal · {option.nutritionTotal.proteinG} g protein · {option.nutritionTotal.fatG} g fat · {option.nutritionTotal.carbG} g carbs</p>}
       {Boolean(response.meta.missingNutrition[option.id]?.length) && <p className="planning-small muted">{option.nutritionTotal ? "Some ingredients are missing nutrition data. Totals include only matched ingredients." : "Nutrition data is unavailable for these ingredients."}</p>}
       {option.leftovers.length > 0 && <details className="planning-leftovers"><summary>Left for your next meal</summary><ul>{option.leftovers.map((item) => <li key={item.productId}>{item.name} · {formatWeight(item.qtyG, units)}</li>)}</ul></details>}
-      <button type="button" className="btn planning-full" disabled={Boolean(choosing)} onClick={() => void choose(option)}>{choosing === option.id ? "Saving your plan…" : "Choose this plan →"}</button>
+      <button type="button" className="btn primary planning-full" disabled={Boolean(choosing)} onClick={() => void choose(option)}>{choosing === option.id ? "Saving your plan…" : "Choose this plan →"}</button>
     </article>)}
   </main>;
 }

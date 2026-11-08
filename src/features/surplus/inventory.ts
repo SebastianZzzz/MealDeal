@@ -1,6 +1,7 @@
 import type { SurplusListing } from "../../types";
 
-export const SURPLUS_KEY = "mealdeal.surplus.v1";
+// v2: new sample dishes; bumping the key reloads them in browsers that already stored v1.
+export const SURPLUS_KEY = "mealdeal.surplus.v2";
 type LocalStorage = Pick<Storage, "getItem" | "setItem">;
 export type ExclusiveLock = <T>(work: () => T) => Promise<T>;
 export type ListingDraft = Omit<SurplusListing, "id" | "isSample" | "createdAt">;

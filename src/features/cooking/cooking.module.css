@@ -101,3 +101,15 @@
 @media (min-width: 600px) { .page { padding: 35px 40px 50px; } .intro { padding-top: 42px; } .recipeHeader { padding: 23px; } .recipeBody { padding: 0 25px; } }
 @media (max-width: 360px) { .page { padding: 22px 15px 36px; } .recipeHeader { gap: 10px; padding: 15px; } .recipeArt { width: 48px; height: 62px; font-size: 28px; } .recipeHeading h3 { font-size: 22px; } .stepDetail { padding-left: 0; } .recipeBody { padding: 0 15px; } .stage { font-size: 8px; letter-spacing: .8px; } }
 @media (prefers-reduced-motion: reduce) { .page * { transition: none; scroll-behavior: auto; } }
+
+/* Readability pass: the phone sits on the counter while cooking, so steps, ingredients,
+   timers and buttons get the largest type; small labels stay at 12px or more. */
+.stage, .eyebrow, .recipeNumber, .stepNumber, .timerTop, .timerTop > span:first-child, .footer > span, .ingredientsHeading > span, .stepHeader small { font-size: 12px; }
+.ingredients small { font-size: 11px; }
+.breadcrumb, .demo, .mealMeta, .recipeMeta, .progressCard p, .sectionHeading label, .previewNote, .timeUp { font-size: 14px; }
+.progressCard strong span, .sectionHeading select, .ingredientsHeading h4, .celebration p, .cloudSync p, .featureLinks { font-size: 15px; }
+.ingredients li { font-size: 16px; }
+.stepHeader > span:nth-child(2) { font-size: 17px; }
+.stepDetail > p { font-size: 18px; line-height: 1.6; }
+.doneMessage { font-size: 16px; }
+.timerPrimary, .textButton, .completeButton, .homeButton, .restart, .timerTray button, .backLink, .cloudSync button { font-size: 16px; min-height: 44px; }

@@ -90,7 +90,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
       </section>;
     })}
     {error && <p role="alert" className="planning-error">{error}</p>}
-    {bought === total && <button className="btn planning-full" onClick={finish}>Start cooking →</button>}
+    {bought === total && <button type="button" className="btn primary planning-full" onClick={finish}>Start cooking →</button>}
     <p className="planning-small muted">{bought === total ? "Your ingredients are ready. Your plan is saved on this device." : "Check off each item after buying it to finish shopping."}</p>
   </main>;
 }
