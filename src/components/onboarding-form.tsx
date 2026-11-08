@@ -7,7 +7,6 @@ import { readApiError } from "@/lib/api-error";
 import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile-validation";
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
-import { Brand } from "@/components/brand";
 import { RangeField } from "@/components/range-field";
 
 const options = {
@@ -31,30 +30,38 @@ function stepForFields(fields: Record<string, string>, fallback: number) {
 const NUTRITION_GOALS = ["High protein", "Balanced", "Low calorie"];
 
 // Optional free-text entry under a group of choices: adds the item and selects it.
-function OtherInput({ label, values, onAdd }: { label: string; values: string[]; onAdd: (value: string) => void }) {
+function OtherInput({ label, values, onAdd, onSelect }: { label: string; values: string[]; onAdd: (value: string) => void; onSelect: (value: string) => void }) {
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
   function add() {
     const value = text.trim().replace(/\s+/g, " ");
     if (!value) return;
     const existing = values.find((item) => item.toLowerCase() === value.toLowerCase());
-    onAdd(existing ?? value);
-    setNote(existing ? `${existing} is selected.` : `${value} added.`);
+    if (!existing) onAdd(value);
+    onSelect(existing ?? value);
+    setNote(existing ? `${existing} is selected.` : `${value} added and selected.`);
     setText("");
   }
   return <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
     <div style={{ display: "flex", gap: 8 }}>
       <input aria-label={`Other ${label}`} placeholder="Other (optional)" maxLength={60} value={text} onChange={(event) => { setText(event.target.value); setNote(""); }}
         onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); add(); } }}
-        style={{ flex: 1, minWidth: 0, minHeight: 46, border: "1px solid #c8d3ca", borderRadius: 11, padding: "10px 12px", background: "white", fontSize: 16 }} />
-      <button type="button" className="btn secondary" style={{ minHeight: 46 }} disabled={!text.trim()} onClick={add}>Add</button>
+        className="text-input" style={{ flex: 1, minWidth: 0 }} />
+      <button type="button" className="btn secondary" disabled={!text.trim()} onClick={add}>Add</button>
     </div>
     <span className="muted" role="status" style={{ fontSize: 14, fontWeight: 400 }}>{note}</span>
   </div>;
 }
 
-function Chips({ values, selected, onChange }: { values: string[]; selected: string[]; onChange: (value: string[]) => void }) {
-  return <div className="chips">{values.map((value) => <button type="button" key={value} className="chip" aria-pressed={selected.includes(value)} onClick={() => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])}>{value}</button>)}</div>;
+// Custom items (added with "Other") stay as chips while editing, even when unselected, so a mis-tap is
+// easy to undo. Their x removes them for good; unselected ones are simply not saved.
+function Chips({ values, selected, onChange, custom = [], onRemove }: { values: string[]; selected: string[]; onChange: (value: string[]) => void; custom?: string[]; onRemove?: (value: string) => void }) {
+  const all = [...new Set([...values, ...custom, ...selected])];
+  return <div className="chips">{all.map((value) => {
+    const chip = <button type="button" key={value} className="chip" aria-pressed={selected.includes(value)} onClick={() => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])}>{value}</button>;
+    if (!onRemove || values.includes(value)) return chip;
+    return <span key={value} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{chip}<button type="button" className="chip-remove" aria-label={`Remove ${value}`} onClick={() => onRemove(value)}>×</button></span>;
+  })}</div>;
 }
 
 function englishProfile(profile: UserProfile): UserProfile {
@@ -68,6 +75,9 @@ export function OnboardingForm() {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [custom, setCustom] = useState<Record<"dietary" | "allergies" | "equipment" | "goal", string[]>>({ dietary: [], allergies: [], equipment: [], goal: [] });
+  const addCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].includes(value) ? current[key] : [...current[key], value] }));
+  const dropCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].filter((item) => item !== value) }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [serverFields, setServerFields] = useState<Record<string, string>>({});
@@ -156,7 +166,7 @@ export function OnboardingForm() {
 
   const headings = ["Units", "Food preferences", "Your equipment", "Your pantry", "Shopping range"];
   return <main className="page onboarding-page">
-    <header className="onboarding-header"><Brand compact /><span className="muted">STEP {step + 1} OF 5</span></header>
+    <header className="onboarding-header"><span className="muted">STEP {step + 1} OF 5</span></header>
     <div className="onboarding-progress"><div style={{ width: `${(step + 1) * 20}%` }} /></div>
     <p className="planning-eyebrow">MAKE MEALDEAL YOURS</p>
     <h1>{headings[step]}</h1>
@@ -167,11 +177,11 @@ export function OnboardingForm() {
     </section>}
     {step === 1 && <section className="onboarding-section">
       <p className="muted">Rules every plan must follow. You pick cuisines and the meat/veg balance each time you plan.</p>
-      <div className="field" role="group" aria-label="Dietary needs">Dietary needs<Chips values={[...new Set([...options.dietary, ...profile.dietary])]} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}<OtherInput label="dietary need" values={profile.dietary} onAdd={(value) => setProfile(withDietary(profile, profile.dietary.includes(value) ? profile.dietary : [...profile.dietary, value]))} /></div>
-      <div className="field" role="group" aria-label="Allergies">Allergies<Chips values={[...new Set([...options.allergies, ...profile.allergies])]} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /><OtherInput label="allergy" values={profile.allergies} onAdd={(value) => setProfile({ ...profile, allergies: profile.allergies.includes(value) ? profile.allergies : [...profile.allergies, value] })} /></div>
+      <div className="field" role="group" aria-label="Dietary needs">Dietary needs<Chips values={options.dietary} custom={custom.dietary} onRemove={(value) => { dropCustom("dietary", value); setProfile(withDietary(profile, profile.dietary.filter((item) => item !== value))); }} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}<OtherInput label="dietary need" values={[...options.dietary, ...custom.dietary]} onAdd={(value) => addCustom("dietary", value)} onSelect={(value) => setProfile(withDietary(profile, profile.dietary.includes(value) ? profile.dietary : [...profile.dietary, value]))} /></div>
+      <div className="field" role="group" aria-label="Allergies">Allergies<Chips values={options.allergies} custom={custom.allergies} onRemove={(value) => { dropCustom("allergies", value); setProfile({ ...profile, allergies: profile.allergies.filter((item) => item !== value) }); }} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /><OtherInput label="allergy" values={[...options.allergies, ...custom.allergies]} onAdd={(value) => addCustom("allergies", value)} onSelect={(value) => setProfile({ ...profile, allergies: profile.allergies.includes(value) ? profile.allergies : [...profile.allergies, value] })} /></div>
       <RangeField id="default-servings" label="People I usually cook for" value={profile.defaultServings} min={1} max={8} onChange={(defaultServings) => { setProfile({ ...profile, defaultServings }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}
     </section>}
-    {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={[...new Set([...options.equipment, ...profile.equipment])]} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput label="equipment" values={profile.equipment} onAdd={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
+    {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} custom={custom.equipment} onRemove={(value) => { dropCustom("equipment", value); setProfile({ ...profile, equipment: profile.equipment.filter((item) => item !== value) }); }} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput label="equipment" values={[...options.equipment, ...custom.equipment]} onAdd={(value) => addCustom("equipment", value)} onSelect={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
     {step === 3 && <section className="onboarding-section">
       <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
       <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, minWidth: 0, minHeight: 48, border: "1px solid #c8d3ca", borderRadius: 11, padding: "12px 14px", background: "white", fontSize: 16 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
@@ -195,7 +205,7 @@ export function OnboardingForm() {
     </section>}
     {step === 4 && <section className="onboarding-section">
       <RangeField id="max-distance" label="Shopping distance" value={profile.maxDistanceKm} min={0.5} max={15} step={0.5} format={(value) => `${value} km`} onChange={(maxDistanceKm) => setProfile({ ...profile, maxDistanceKm })} />
-      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={[...new Set([...NUTRITION_GOALS, ...(profile.nutritionGoal ? [profile.nutritionGoal] : [])])]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput label="nutrition goal" values={profile.nutritionGoal ? [profile.nutritionGoal] : []} onAdd={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
+      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
     </section>}
     {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
     <footer style={{ display: "flex", gap: 10, marginTop: 26 }}>

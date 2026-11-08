@@ -8,7 +8,6 @@ import { readApiError } from "@/lib/api-error";
 import { CATEGORIES } from "./categories.ts";
 import { normalizePrice } from "./pricing.ts";
 import type { NearbyStore } from "./stores.ts";
-import { Brand } from "@/components/brand";
 import { ScreenHeader } from "@/components/screen-header";
 
 const DEMO_CENTER = { lat: 49.2644, lng: -123.2537 };
@@ -177,7 +176,6 @@ export function ReportForm() {
   if (saved) {
     return (
       <main className="page">
-        <Brand compact />
         <p className="planning-eyebrow">THANK YOU</p>
         <h1>Prices shared with your community</h1>
         <section className="card">

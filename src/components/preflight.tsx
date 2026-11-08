@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { demoStore } from "@/lib/demo-store";
 import type { PantryItem, UserProfile } from "@/contracts";
-import { Brand } from "@/components/brand";
 import { ScreenHeader } from "@/components/screen-header";
 
 export function Preflight() {
@@ -28,7 +27,7 @@ export function Preflight() {
     return <main className="page"><p role="status">Loading your kitchen…</p></main>;
   }
   if (!profile?.onboardingComplete) {
-    return <main className="page"><Brand /><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link></main>;
+    return <main className="page"><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link></main>;
   }
   return <main className="page">
     <ScreenHeader backHref="/" />

@@ -5,7 +5,7 @@
 .nav a:hover, .footer a:hover { text-decoration: underline; }
 .hero { padding: 28px 0 18px; }
 .eyebrow { font-size: 11px; letter-spacing: 1.6px; font-weight: 700; color: #657458; }
-.hero h1 { font-family: Georgia, "Times New Roman", serif; font-size: 36px; font-weight: 400; line-height: 1.08; letter-spacing: -.8px; margin: 16px 0; }
+.hero h1 { font-family: var(--font-display), Georgia, serif; font-size: 36px; font-weight: 400; line-height: 1.08; letter-spacing: -.8px; margin: 16px 0; }
 .hero > p:last-child { max-width: 440px; line-height: 1.7; font-size: 15px; color: var(--muted); }
 .notice { background: #eaf0df; border: 1px solid #d5dfc6; border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.7; }
 .notice p { margin: 5px 0 0; color: #59694e; }
@@ -18,7 +18,7 @@
 .cards { display: grid; gap: 16px; }
 .card { background: #fffefa; border: 1px solid #dce1d5; border-radius: 15px; padding: 22px; }
 .tag { display: inline-block; border-radius: 5px; background: #edf1e4; padding: 6px 9px; color: #526745; font-size: 10px; font-weight: 700; letter-spacing: .4px; margin: 0 8px 6px 0; }
-.card h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 28px; line-height: 1.15; letter-spacing: -.7px; margin: 10px 0; }
+.card h2 { font-family: var(--font-display), Georgia, serif; font-weight: 400; font-size: 28px; line-height: 1.15; letter-spacing: -.7px; margin: 10px 0; }
 .address { color: var(--muted); font-size: 13px; line-height: 1.6; }
 .card dl { margin: 22px 0; }
 .card dt { font-size: 12px; font-weight: 700; margin-top: 16px; }
@@ -59,3 +59,28 @@
 .cardFooter a { font-size: 15px; font-weight: 700; min-height: 44px; display: inline-flex; align-items: center; }
 .cardFooter > span { font-size: 13px; }
 .primary, .secondary { font-size: 16px; min-height: 48px; }
+
+/* Design-system alignment (shared with globals.css): pill buttons and filters, 16px cards,
+   one green, display font for headings. */
+.page { max-width: 440px; padding: 8px 20px 112px; }
+.nav { display: none; }
+.eyebrow { color: var(--green); font-weight: 700; letter-spacing: 1.2px; }
+.hero { padding: 4px 0 12px; }
+.hero h1, .card h2, .form h2, .empty h2 { font-family: var(--font-display); font-weight: 600; color: var(--green-deep); letter-spacing: -.4px; }
+.hero h1 { font-size: 34px; }
+.card h2 { font-size: 22px; }
+.notice { background: var(--mint-soft); border: 0; border-radius: 12px; }
+.notice p { color: var(--ink-soft); }
+.field input, .field select, .field textarea { min-height: 50px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 16px; }
+.filters { gap: 8px; }
+.filters button { min-height: 44px; padding: 0 16px; border: 1.5px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 600; }
+.filters button[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+.card { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.tag { border-radius: 999px; background: var(--mint); color: var(--green-deep); padding: 4px 10px; }
+.cardFooter a { color: var(--green); }
+.primary, .secondary { border-radius: 999px; min-height: 48px; font-weight: 700; border: 1.5px solid var(--green); }
+.primary { background: var(--green); color: #fff; }
+.primary:hover { background: var(--green-hover); }
+.secondary { background: var(--surface); color: var(--green); }
+.secondary:hover { background: var(--mint-soft); }
+.price { font-family: var(--font-display); color: var(--green-deep); }

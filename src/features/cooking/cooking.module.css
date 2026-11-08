@@ -15,7 +15,7 @@
 .demo { background: #e9eedf; border: 1px solid #dce3ce; color: #536143; font-size: 11px; padding: 9px 12px; border-radius: 6px; margin: 0; }
 .intro { padding: 34px 0 28px; }
 .eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 1.8px; margin: 0; color: #64715a; }
-.intro h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 36px; line-height: 1.08; letter-spacing: -.8px; margin: 15px 0 17px; }
+.intro h1 { font-family: var(--font-display), Georgia, serif; font-weight: 400; font-size: 36px; line-height: 1.08; letter-spacing: -.8px; margin: 15px 0 17px; }
 .subtitle { max-width: 370px; font-size: 14px; color: var(--muted); line-height: 1.7; margin: 0; }
 .mealMeta { display: flex; gap: 22px; margin-top: 22px; font-size: 11px; color: #56654f; }
 .mealMeta > span { display: flex; gap: 7px; align-items: center; }
@@ -27,7 +27,7 @@
 .progressTrack span { display: block; height: 100%; background: var(--green); border-radius: 20px; transition: width .25s; }
 .progressCard p { color: #67725e; font-size: 10px; line-height: 1.6; margin: 11px 0 0; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 32px 0 14px; }
-.sectionHeading h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 24px; margin: 0; letter-spacing: -.7px; }
+.sectionHeading h2 { font-family: var(--font-display), Georgia, serif; font-weight: 400; font-size: 24px; margin: 0; letter-spacing: -.7px; }
 .sectionHeading label { color: var(--muted); font-size: 10px; display: flex; align-items: center; gap: 6px; }
 .sectionHeading select { background: transparent; border: 1px solid #cad3c3; border-radius: 6px; padding: 7px 5px; color: var(--ink); font-size: 12px; min-height: 36px; }
 .recipes { display: grid; gap: 14px; }
@@ -38,7 +38,7 @@
 .riceArt { background: #e9edda; transform: rotate(3deg); }
 .recipeHeading { min-width: 0; flex: 1; }
 .recipeNumber { font-size: 8px; font-weight: 800; letter-spacing: 1.5px; color: #758064; }
-.recipeHeading h3 { font-family: Georgia, "Times New Roman", serif; font-size: 24px; line-height: 1.15; font-weight: 400; margin: 7px 0 10px; letter-spacing: -.5px; }
+.recipeHeading h3 { font-family: var(--font-display), Georgia, serif; font-size: 24px; line-height: 1.15; font-weight: 400; margin: 7px 0 10px; letter-spacing: -.5px; }
 .recipeMeta { display: flex; gap: 7px; flex-wrap: wrap; font-size: 10px; color: #707a65; }
 .recipeMeta > span { color: #a2aa97; }
 .expandIcon { flex-shrink: 0; color: var(--green); transition: transform .2s; }
@@ -85,11 +85,11 @@
 .timeUp { color: #77541c; font-size: 11px; line-height: 1.5; }
 .celebration { text-align: center; padding: 33px 24px; background: #ebf0e2; border: 1px solid #d5dfc8; border-radius: 15px; margin-top: 22px; }
 .finishMark { display: grid; place-items: center; margin: 0 auto 18px; border-radius: 50%; width: 58px; height: 58px; color: var(--green); background: #d7e5c6; }
-.celebration h2 { font-family: Georgia, "Times New Roman", serif; font-size: 29px; font-weight: 400; line-height: 1.2; margin: 0; }
+.celebration h2 { font-family: var(--font-display), Georgia, serif; font-size: 29px; font-weight: 400; line-height: 1.2; margin: 0; }
 .celebration p { font-size: 12px; line-height: 1.7; color: #66735c; margin-bottom: 23px; }
 .empty { text-align: center; padding: 30px; border: 1px solid #dce1d5; border-radius: 12px; }
 .footer { display: flex; align-items: center; flex-direction: column; color: #7b876e; text-align: center; padding: 35px 0 22px; }
-.footer p { font-family: Georgia, "Times New Roman", serif; font-size: 15px; font-style: italic; margin: 10px 0; }
+.footer p { font-family: var(--font-display), Georgia, serif; font-size: 15px; font-style: italic; margin: 10px 0; }
 .footer > span { font-size: 9px; line-height: 1.6; }
 .backLink { display: flex; width: fit-content; align-items: center; margin: 0 auto; gap: 5px; font-size: 11px; color: #738067; text-underline-offset: 4px; }
 .featureLinks { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 24px; font-size: 12px; color: var(--green); text-underline-offset: 4px; }
