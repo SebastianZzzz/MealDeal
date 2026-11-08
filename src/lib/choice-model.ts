@@ -8,6 +8,7 @@ const MODELS = (process.env.GEMINI_CHECK_MODELS ?? "gemini-3.1-flash-lite,gemini
 
 const QUESTION: Record<ChoiceKind, string> = {
   allergy: "a food, ingredient or food allergen that a person might need to avoid",
+  pantry: "a food, ingredient, seasoning or cooking staple someone could keep at home",
   dietary: "a diet, eating pattern, or a food a person avoids for health, religion or ethics",
   equipment: "a kitchen appliance, cookware or cooking tool",
   goal: "a nutrition or eating goal",

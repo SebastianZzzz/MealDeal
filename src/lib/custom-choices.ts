@@ -2,7 +2,7 @@
 // look like a real choice and be one we can act on. Diet and allergy entries reach the planner and the
 // Gemini prompt, so junk or instructions never get that far. The profile API re-checks the format.
 
-export type ChoiceKind = "dietary" | "allergy" | "equipment" | "goal";
+export type ChoiceKind = "dietary" | "allergy" | "equipment" | "goal" | "pantry";
 
 // Letters (any script), spaces, hyphens and apostrophes; 2-40 characters; at most four words.
 export const CHOICE_FORMAT = /^(?=.{2,40}$)\p{L}[\p{L}'’-]*(?: [\p{L}'’-]+){0,3}$/u;
@@ -30,6 +30,16 @@ const EQUIPMENT = [
   "steamer", "grill", "griddle", "kettle", "electric kettle", "blender", "immersion blender", "food processor", "mixer", "stand mixer", "hand mixer", "sous vide",
   "waffle maker", "sandwich maker", "panini press", "bread maker", "juicer", "thermometer", "kitchen scale", "scale", "fridge", "freezer",
 ];
+// Pantry staples and seasonings on top of FOODS (pantry names are sent to the planner prompt).
+const PANTRY = [
+  "salt", "oil", "olive oil", "sesame oil", "soy sauce", "fish sauce", "oyster sauce", "hoisin", "sriracha", "ketchup", "mayo", "mayonnaise",
+  "sauce", "stock", "broth", "bouillon", "spice", "herb", "seasoning", "curry", "paste", "miso", "gochujang", "doenjang", "kimchi",
+  "starch", "cornstarch", "baking soda", "baking powder", "jam", "peanut butter", "syrup", "dumpling", "tortilla", "bagel", "cereal",
+  "frozen vegetable", "spam", "sausage", "leftover", "instant noodle", "ramen", "udon", "soba", "vermicelli", "rice cake", "cracker",
+  "bok choy", "kale", "corn", "green onion", "scallion", "leek", "celery", "squash", "pumpkin", "sweet potato", "yam", "beet", "radish",
+  "mushroom", "pepper", "parsley", "basil", "oregano", "thyme", "rosemary", "turmeric", "chili flake", "chili oil", "five spice",
+];
+
 const GOALS = [
   "high protein", "more protein", "balanced", "low calorie", "fewer calories", "high fiber", "high fibre", "more fiber", "more fibre", "low sugar", "less sugar",
   "low sodium", "less salt", "low fat", "heart healthy", "more vegetables", "more veg", "more fruit", "high iron", "more iron", "more calcium", "low carb",
@@ -51,6 +61,7 @@ const EXAMPLES: Record<ChoiceKind, string> = {
   allergy: "mushroom, sesame or shellfish",
   equipment: "wok, steamer or slow cooker",
   goal: "high fiber, low sugar or more vegetables",
+  pantry: "jasmine rice, soy sauce or frozen dumplings",
 };
 
 export type ChoiceVerdict = "ok" | "bad-format" | "unknown";
@@ -59,7 +70,8 @@ export type ChoiceVerdict = "ok" | "bad-format" | "unknown";
 export function classifyCustomChoice(kind: ChoiceKind, raw: string): ChoiceVerdict {
   const text = raw.trim().replace(/\s+/g, " ");
   if (!CHOICE_FORMAT.test(text)) return "bad-format";
-  const known = kind === "allergy" ? matches(text, FOODS)
+  const known = kind === "pantry" ? matches(text, FOODS) || matches(text, PANTRY)
+    : kind === "allergy" ? matches(text, FOODS)
     : kind === "dietary" ? matches(text, DIETS) || (/^(no|without|avoid)\s/i.test(text) && matches(text, FOODS))
     : kind === "equipment" ? matches(text, EQUIPMENT)
     : matches(text, GOALS);
@@ -71,6 +83,7 @@ export function formatProblem(kind: ChoiceKind): string {
 }
 
 export function notRecognized(kind: ChoiceKind, text: string): string {
+  if (kind === "pantry") return `"${text}" doesn't look like food you'd keep at home, so plans couldn't use it. Try something like ${EXAMPLES[kind]}.`;
   return kind === "allergy"
     ? `"${text}" doesn't look like a food, so plans couldn't avoid it. Try something like ${EXAMPLES[kind]}.`
     : `"${text}" doesn't look like a ${kind === "dietary" ? "diet" : kind === "equipment" ? "kitchen tool" : "nutrition goal"} we can use. Try something like ${EXAMPLES[kind]}.`;

@@ -50,6 +50,10 @@ export async function POST(request: Request) {
       return apiError(problem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", problem.check.message, { [`profile.${field}.${problem.index}`]: problem.check.message });
     }
   }
+  const pantryProblem = await firstChoiceProblem("pantry", parsed.data.pantry.map((item) => item.name));
+  if (pantryProblem) {
+    return apiError(pantryProblem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", pantryProblem.check.message, { [`pantry.${pantryProblem.index}.name`]: pantryProblem.check.message });
+  }
   try {
     return NextResponse.json(await generatePlan(parsed.data), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

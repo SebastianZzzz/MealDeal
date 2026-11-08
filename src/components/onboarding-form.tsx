@@ -108,6 +108,7 @@ export function OnboardingForm() {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [newItem, setNewItem] = useState("");
+  const [checkingPantry, setCheckingPantry] = useState(false);
   const [custom, setCustom] = useState<Record<"dietary" | "allergies" | "equipment" | "goal", string[]>>({ dietary: [], allergies: [], equipment: [], goal: [] });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const note = (key: string) => (text: string) => setNotes((current) => ({ ...current, [key]: text }));
@@ -151,12 +152,33 @@ export function OnboardingForm() {
     void load();
   }, []);
 
-  function addPantry() {
+  async function pantryAllowed(name: string) {
+    const say = (pantryNote: string) => setNotes((current) => ({ ...current, pantry: pantryNote }));
+    const verdict = classifyCustomChoice("pantry", name);
+    if (verdict === "bad-format") { say(formatProblem("pantry")); return false; }
+    if (verdict === "ok") return true;
+    setCheckingPantry(true);
+    say(`Checking "${name}"…`);
+    try {
+      const response = await fetch("/api/choices/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "pantry", value: name }) });
+      if (!response.ok) { say((await readApiError(response)).error); return false; }
+      const result = await response.json() as { ok: boolean; message?: string };
+      if (!result.ok) say(result.message ?? "That doesn't look like food you'd keep at home.");
+      return result.ok;
+    } catch {
+      say(`We couldn't check "${name}" right now. Try again in a minute.`);
+      return false;
+    } finally {
+      setCheckingPantry(false);
+    }
+  }
+
+  async function addPantry() {
     const name = newItem.trim().replace(/\s+/g, " ");
     if (!name) return;
     const existing = pantry.find((item) => item.name.toLowerCase() === name.toLowerCase());
     if (existing) setNotes((current) => ({ ...current, pantry: `${existing.name} is already in your pantry.` }));
-    else {
+    else if (await pantryAllowed(name)) {
       setPantry((items) => [...items, { name, qtyG: 0, kind: guessPantryKind(name), amount: "unknown" }]);
       setNotes((current) => ({ ...current, pantry: `${name} added.` }));
     }
@@ -284,7 +306,7 @@ export function OnboardingForm() {
     {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} custom={custom.equipment} onRemove={(value) => { dropCustom("equipment", value); note("equipment")(`${value} removed.`); setProfile({ ...profile, equipment: profile.equipment.filter((item) => item !== value) }); }} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput kind="equipment" label="equipment" values={[...options.equipment, ...custom.equipment]} selected={profile.equipment} note={notes.equipment ?? ""} onNote={note("equipment")} onAdd={(value) => addCustom("equipment", value)} onSelect={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
     {step === 3 && <section className="onboarding-section">
       <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
-      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" className="text-input" autoComplete="off" maxLength={60} style={{ flex: 1, minWidth: 0 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn secondary" type="button" disabled={!newItem.trim()} onClick={addPantry}>Add</button></div>
+      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" className="text-input" autoComplete="off" maxLength={60} style={{ flex: 1, minWidth: 0 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn secondary" type="button" disabled={!newItem.trim() || checkingPantry} onClick={() => void addPantry()}>{checkingPantry ? "…" : "Add"}</button></div>
       <span className="muted" role="status" style={{ display: "block", fontSize: 14, minHeight: 20, marginTop: 6 }}>{notes.pantry ?? ""}</span>
       <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{pantry.map((item, index) => {
         const kind = item.kind ?? guessPantryKind(item.name);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { assertDatabaseConfigured, db } from "@/lib/db";
 import { getIdentity } from "@/lib/session";
 import { apiError, validationError } from "@/lib/api-error";
+import { firstChoiceProblem } from "@/lib/choice-model";
 import { guessPantryKind } from "@/lib/pantry-amounts";
 
 export const runtime = "nodejs";
@@ -69,6 +70,11 @@ export async function PUT(request: Request) {
   }
   const parsed = pantrySchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+  // Pantry names are sent to the planner prompt: same gate as diet and allergies.
+  const problem = await firstChoiceProblem("pantry", parsed.data.map((item) => item.name));
+  if (problem) {
+    return apiError(problem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", problem.check.message, { [`${problem.index}.name`]: problem.check.message });
+  }
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
     return Response.json({ items: parsed.data, mode: "demo" });
   }
