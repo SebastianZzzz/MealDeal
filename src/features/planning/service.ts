@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Food } from "@/types";
 import type { PlanningResponse } from "@/contracts/planning-api";
 import { calculateOption } from "./calculate";
+import { getMealSlots } from "./slots";
 import { loadCatalog, type Catalog } from "./catalog";
 import { createDemoOptions } from "./demo";
 import { filterPantry, filterProducts } from "./filter";
@@ -69,6 +70,8 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   }
   const requestId = randomUUID();
   const options: PlanningResponse["options"] = [];
+  // Cheapest complete plan that was over budget, so the error can say how far off we were.
+  let cheapestOverBudget = Infinity;
   const missingNutrition: Record<string, string[]> = {};
   const signatures = new Set<string>();
   // Share the time budget and unavailable-model list across any corrective retry.
@@ -86,7 +89,8 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
       if (mode === "gemini") {
         const generated = await generateWithGemini(input.request, profile, withNutrition(pantry, foodMap), withNutrition(products, foodMap), feedback, generationContext);
         drafts = generated.options;
-        noteIgnored ||= generated.noteIgnored;
+        // Only meaningful when the student actually wrote a note.
+        noteIgnored ||= generated.noteIgnored && Boolean(input.request.note?.trim());
       } else {
         drafts = createDemoOptions(input.request, profile, products, pantry);
       }
@@ -113,6 +117,7 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
         const result = calculateOption(parsed, input.request, products, pantry, catalog.foods, `${requestId}-${attempt + 1}-${index + 1}`);
         if (!result.option.withinBudget) {
           errors.push(`Shopping cost ${result.option.shoppingCost} exceeds budget ${input.request.budget}.`);
+          cheapestOverBudget = Math.min(cheapestOverBudget, result.option.shoppingCost);
           continue;
         }
         const signature = optionSignature(result.option);
@@ -133,7 +138,12 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
     feedback = buildRetryFeedback(options, errors);
   }
   if (!options.length) {
-    throw new PlanningError("No complete plan fits these constraints. Try a larger total budget, fewer meals, more cooking time or different equipment. No items have been added to your shopping list.");
+    const meals = getMealSlots(input.request).length;
+    const people = input.request.servings;
+    if (Number.isFinite(cheapestOverBudget)) {
+      throw new PlanningError(`The cheapest complete plan we found costs $${cheapestOverBudget.toFixed(2)} for ${meals} ${meals === 1 ? "meal" : "meals"} × ${people} ${people === 1 ? "person" : "people"}, over your $${input.request.budget} budget. Raise the budget, plan fewer meals, or add food you already have to your pantry.`);
+    }
+    throw new PlanningError(`We couldn't build a complete plan for ${meals} ${meals === 1 ? "meal" : "meals"} with these settings. Try again, allow more cooking time, or loosen a restriction.`);
   }
   if (options.length < 2) {
     warnings.push("Only one complete option was found within the budget, restrictions and generation limits. Try again for more choices.");

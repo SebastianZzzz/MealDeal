@@ -531,7 +531,7 @@ test("stops after bounded retries without claiming that a second option cannot e
 test("corrective retries never raise the budget to satisfy the option count", async () => {
   let calls = 0;
   await withGeminiMock(async () => {
-    await assert.rejects(generatePlan({ ...input, request: { ...request, budget: 1 } }, fixtureCatalog), /No complete plan/);
+    await assert.rejects(generatePlan({ ...input, request: { ...request, budget: 1 } }, fixtureCatalog), /cheapest complete plan we found costs \$[0-9.]+.*over your \$1 budget/);
     assert.equal(calls, 3);
   }, (call) => {
     calls = call;

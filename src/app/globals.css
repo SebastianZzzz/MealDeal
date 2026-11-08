@@ -218,3 +218,4 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .pantry-item { display: grid; gap: 10px; padding: 14px; border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); }
 .pantry-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pantry-item-head .icon-btn { width: 40px; height: 40px; box-shadow: none; }
+.area-map .support-map { height: 170px; }
