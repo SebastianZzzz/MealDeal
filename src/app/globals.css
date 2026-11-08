@@ -219,3 +219,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .pantry-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pantry-item-head .icon-btn { width: 40px; height: 40px; box-shadow: none; }
 .area-map .support-map { height: 170px; }
+/* Location result: success is the key information (green, place in bold); progress stays quiet. */
+.place-status { display: block; min-height: 20px; font-size: 15px; font-weight: 500; line-height: 1.5; }
+.place-info { color: var(--muted); }
+.place-success { color: var(--green); }
+.place-success strong { font-weight: 800; color: var(--green-deep); }
+.place-error { color: var(--danger); font-weight: 700; }
