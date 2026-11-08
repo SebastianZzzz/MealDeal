@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/features/catalog/*.test.mts",
-    "seed:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-catalog-seed.mts"
+    "seed:catalog": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-catalog-seed.mts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "latest",
