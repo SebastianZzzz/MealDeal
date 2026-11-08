@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { demoStore } from "@/lib/demo-store";
 import type { PantryItem, UserProfile } from "@/contracts";
@@ -27,7 +28,7 @@ export function Preflight() {
     return <main className="page"><p role="status">Loading your kitchen…</p></main>;
   }
   if (!profile?.onboardingComplete) {
-    return <main className="page"><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link><Link className="btn secondary planning-full" href="/cook/resume">Continue a saved plan</Link></main>;
+    return <main className="page"><p className="planning-eyebrow">WELCOME TO YOUR KITCHEN</p><h1>Let&apos;s set up your kitchen first.</h1><p className="muted">Tell us what you eat, what you have, and the tools you cook with.</p><Image className="kitchen-setup-guide" src="/images/kitchen-setup-guide.png" alt="A home cook preparing fresh vegetables in a well-stocked kitchen." width={778} height={510} priority /><Link className="btn planning-full" href="/onboarding">Start kitchen setup →</Link><Link className="btn secondary planning-full" href="/cook/resume">Continue a saved plan</Link></main>;
   }
   return <main className="page">
     <ScreenHeader backHref="/" />

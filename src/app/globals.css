@@ -167,6 +167,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
 /* Price-tag photo guidance */
 .price-tag-photo-guide { display: block; width: 100%; height: auto; margin-top: 18px; border-radius: 16px; }
+.kitchen-setup-guide { display: block; width: 100%; height: auto; margin-top: 18px; border-radius: 16px; }
 
 /* Account sheet */
 .sheet-backdrop { position: fixed; inset: 0; z-index: 40; background: rgb(20 30 26 / 45%); animation: fade-in .18s ease-out; }
