@@ -11,6 +11,8 @@ const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], vari
 export const metadata: Metadata = {
   title: "MealDeal",
   description: "Turn your budget and local grocery prices into meals you can actually make.",
+  applicationName: "MealDeal",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "MealDeal" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#f4f1ea" };
 
