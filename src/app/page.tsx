@@ -16,11 +16,19 @@ export default async function Home() {
         </div>
       </section>
       <section style={{ display: "grid", gap: 12 }}>
-        {user ? <>
-          <Link className="btn" href="/onboarding">Set up my kitchen</Link>
-          <Link className="btn secondary" href="/cook">Cook at home</Link>
-        </> : <a className="btn" href="/auth/login?returnTo=/onboarding">Continue with Auth0</a>}
-        {!authReady && <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Demo mode · no cloud keys required</p>}
+        <Link className="btn" href="/cook">Cook at home</Link>
+        <Link className="btn" href="/eat-out">Eat Out</Link>
+        <Link className="btn" href="/support">Need food support?</Link>
+        {user ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            <Link className="muted" href="/onboarding">Update my kitchen</Link>
+            <a className="muted" href="/auth/logout">Log out</a>
+          </div>
+        ) : authReady ? (
+          <a className="muted" style={{ textAlign: "center", marginTop: 8 }} href="/auth/login?returnTo=/cook">Log in with Auth0</a>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, textAlign: "center" }}>Auth0 environment variables are required to log in.</p>
+        )}
       </section>
     </main>
   );
