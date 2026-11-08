@@ -19,7 +19,9 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
 async function describe(lat: number, lng: number) {
   try {
     const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
     return (await response.json() as { area: string | null }).area;
   } catch {
     return null;
@@ -48,7 +50,10 @@ export function LocationPicker({ value, onChange, setText, emptyText, savedText,
   const [status, setStatus] = useState<Status | null>(null);
 
   function setFromCurrentLocation() {
-    if (!navigator.geolocation) { setStatus({ tone: "error", text: "This browser can't share a location. Enter a postal code instead." }); return; }
+    if (!navigator.geolocation) {
+      setStatus({ tone: "error", text: "This browser can't share a location. Enter a postal code instead." });
+      return;
+    }
     setLocating(true);
     setStatus({ tone: "info", text: "Finding you…" });
     navigator.geolocation.getCurrentPosition(async (position) => {
@@ -68,7 +73,9 @@ export function LocationPicker({ value, onChange, setText, emptyText, savedText,
   }
 
   async function setFromPostal() {
-    if (!postal.trim()) return;
+    if (!postal.trim()) {
+      return;
+    }
     // Check the format here so a typo never leaves the page.
     if (!POSTAL_CODE.test(postal.trim())) {
       setStatus({ tone: "error", text: "That isn't a Canadian postal code. Use the format A1A 1A1, like V6T 1Z4." });
@@ -77,7 +84,9 @@ export function LocationPicker({ value, onChange, setText, emptyText, savedText,
     setLocating(true);
     try {
       const response = await fetch(`/api/geocode?postal=${encodeURIComponent(postal.trim())}`);
-      if (!response.ok) throw new Error((await readApiError(response)).error);
+      if (!response.ok) {
+        throw new Error((await readApiError(response)).error);
+      }
       const place = await response.json() as { lat: number; lng: number; postal: string; area: string | null };
       onChange({ lat: place.lat, lng: place.lng }, place.area ?? place.postal);
       setStatus({ tone: "success", text: setText, place: place.area ? `${place.postal} (${place.area})` : place.postal, after: "." });
@@ -90,7 +99,7 @@ export function LocationPicker({ value, onChange, setText, emptyText, savedText,
 
   const shown = value ?? DEMO_CENTER;
   return <div className="location-picker">
-    {<div className="area-map"><SupportMap label={mapName} radiusKm={distanceKm} points={[{ id: "here", label: "•", name: mapName, lat: shown.lat, lng: shown.lng }]} onSelect={() => undefined} /></div>}
+    {<div className="area-map"><SupportMap label={mapName} radiusKm={distanceKm} animate={false} points={[{ id: "here", label: "•", name: mapName, lat: shown.lat, lng: shown.lng }]} onSelect={() => undefined} /></div>}
     <span role="status" className={`place-status place-${status?.tone ?? "info"}`}>{status
       ? <>{status.text}{status.place && <strong>{status.place}</strong>}{status.after}</>
       : value ? savedText : emptyText}

@@ -2,70 +2,104 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { ZodError } from "zod";
+import samples from "../../../mock/surplus-listings.json";
+import { RangeField } from "@/components/range-field";
 import { notifySurplusChanged } from "./browser-store";
 import { makeSurplusClient, type InventorySource } from "./client";
-import type { ListingDraft } from "./inventory";
 import { ApiRequestError } from "../community/api-client";
-import styles from "../community.module.css";
-import { ScreenHeader } from "@/components/screen-header";
+import { buildSampleDraft, PICKUP_DELAYS, PICKUP_DURATIONS, type SampleMeal, type SampleChoices } from "./sample-draft";
+import { money } from "./presentation";
+import { DishArt } from "./dish-art";
+import { SurplusFeedback, type Feedback } from "./feedback";
+import styles from "./surplus.module.css";
+
+async function publishSample(source: InventorySource, meal: SampleMeal, choices: SampleChoices) {
+  const now = Date.now();
+  const draft = buildSampleDraft(meal, choices, now);
+  return makeSurplusClient(source).post(draft, crypto.randomUUID(), now);
+}
 
 export function SurplusPostForm({ source = "local" }: { source?: InventorySource }) {
+  const [mealId, setMealId] = useState(samples[0].id);
+  const meal = samples.find((sample) => sample.id === mealId) ?? samples[0];
+  const [price, setPrice] = useState(meal.price);
+  const [origPrice, setOrigPrice] = useState(meal.origPrice);
+  const [qtyLeft, setQtyLeft] = useState(meal.qtyLeft);
+  const [delay, setDelay] = useState(30);
+  const [duration, setDuration] = useState(60);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [saved, setSaved] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const browseHref = source === "local" ? "/eat-out" : "/eat-out/shared";
 
-  const messageFor = (name: string) => fields[name] ?? Object.entries(fields).find(([key]) => key.startsWith(`${name}.`))?.[1];
-  const fieldProps = (name: string) => ({
-    "aria-invalid": messageFor(name) ? true : undefined,
-    "aria-describedby": messageFor(name) ? `listing-${name}-error` : undefined,
-  });
-  const fieldHint = (name: string) => messageFor(name) && <span className={styles.fieldError} id={`listing-${name}-error`}>{messageFor(name)}</span>;
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError(""); setFields({}); setSaved(false);
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const text = (key: string) => String(data.get(key) ?? "").trim();
-    const number = (key: string) => text(key) === "" ? Number.NaN : Number(text(key));
-    try {
-      const draft: ListingDraft = {
-        merchantName: text("merchantName"), title: text("title"), address: text("address"),
-        origPrice: number("origPrice"), price: number("price"), qtyLeft: number("qtyLeft"),
-        lat: number("lat"), lng: number("lng"),
-        pickupStart: new Date(text("pickupStart")).toISOString(), pickupEnd: new Date(text("pickupEnd")).toISOString(),
-        allergens: text("allergens").split(",").map((item) => item.trim()).filter(Boolean), description: text("description"),
-      };
-      await makeSurplusClient(source).post(draft, crypto.randomUUID(), Date.now());
-      if (source === "local") notifySurplusChanged();
-      setSaved(true); form.reset();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save your listing. Please try again.");
-      if (cause instanceof ApiRequestError) setFields(cause.fields ?? {});
+  function chooseMeal(id: string) {
+    const next = samples.find((sample) => sample.id === id);
+    if (next) {
+      setMealId(id); setPrice(next.price); setOrigPrice(next.origPrice); setQtyLeft(next.qtyLeft);
+      setFeedback({ tone: "success", content: <><strong>{next.title}</strong> selected.</> });
     }
-    finally { setBusy(false); }
   }
 
-  return <main className={styles.page}>
-    <ScreenHeader backHref={source === "local" ? "/eat-out" : "/eat-out/shared"} />
-    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / LOCAL DEMO</p><h1>Post a meal</h1><p>Try publishing a surplus food listing. No merchant account is needed for this demo.</p></header>
-    <aside className={styles.notice}><strong>Sample listings only.</strong><p>{source === "local" ? "This form saves to this browser." : "This form uses shared storage and requires Auth0 sign-in."} Every posted listing is labeled sample data. No real merchant is contacted and no food or payment is arranged.</p></aside>
-    {saved && <p role="status" className={styles.success}>Your sample listing is saved. <Link href={source === "local" ? "/eat-out" : "/eat-out/shared"}>Browse and try reserving it →</Link></p>}
-    <form onSubmit={(event) => void submit(event)} className={styles.form}>
-      <h2>Listing details</h2>
-      <label className={styles.field}>Merchant name<input name="merchantName" {...fieldProps("merchantName")} required maxLength={100} placeholder="Your sample bakery" />{fieldHint("merchantName")}</label>
-      <label className={styles.field}>Food title<input name="title" {...fieldProps("title")} required maxLength={150} placeholder="End-of-day bread bag" />{fieldHint("title")}</label>
-      <label className={styles.field}>Pickup address<input name="address" {...fieldProps("address")} required maxLength={300} placeholder="A sample Vancouver pickup address" />{fieldHint("address")}</label>
-      <div className={styles.grid}><label className={styles.field}>Original price · CAD<input name="origPrice" {...fieldProps("origPrice")} type="number" min="0" max="100000" step="0.01" required />{fieldHint("origPrice")}</label><label className={styles.field}>Surplus price · CAD<input name="price" {...fieldProps("price")} type="number" min="0" max="100000" step="0.01" required />{fieldHint("price")}</label></div>
-      <label className={styles.field}>Portions available<input name="qtyLeft" {...fieldProps("qtyLeft")} type="number" min="1" max="10000" step="1" required />{fieldHint("qtyLeft")}</label>
-      <div className={styles.grid}><label className={styles.field}>Pickup starts<input name="pickupStart" {...fieldProps("pickupStart")} type="datetime-local" required />{fieldHint("pickupStart")}</label><label className={styles.field}>Pickup ends<input name="pickupEnd" {...fieldProps("pickupEnd")} type="datetime-local" required />{fieldHint("pickupEnd")}</label></div>
-      <p className={styles.small}>Enter pickup times in your device’s local timezone. Listings display them in Vancouver time.</p>
-      <div className={styles.grid}><label className={styles.field}>Pickup latitude<input name="lat" {...fieldProps("lat")} type="number" min="-90" max="90" step="any" defaultValue="49.266" required />{fieldHint("lat")}</label><label className={styles.field}>Pickup longitude<input name="lng" {...fieldProps("lng")} type="number" min="-180" max="180" step="any" defaultValue="-123.243" required />{fieldHint("lng")}</label></div>
-      <p className={styles.small}>The prefilled coordinates are a sample UBC-area position for distance sorting. Update both for your sample pickup location.</p>
-      <label className={styles.field}>Allergens · separate with commas<input name="allergens" {...fieldProps("allergens")} maxLength={1000} placeholder="wheat, milk, eggs" />{fieldHint("allergens")}</label>
-      <label className={styles.field}>Description · optional<textarea name="description" {...fieldProps("description")} maxLength={1000} rows={3} />{fieldHint("description")}</label>
-      {error && <p role="alert" className={styles.error}>{error}</p>}
-      <button className={styles.primary} disabled={busy} type="submit">{busy ? "Saving…" : "Publish sample listing"}</button>
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true); setFeedback({ tone: "progress", content: "Publishing sample meal…" });
+    try {
+      await publishSample(source, meal, { price, origPrice, qtyLeft, delay, duration });
+      if (source === "local") {
+        notifySurplusChanged();
+      }
+      setFeedback({ tone: "success", content: <><strong>{meal.title}</strong> published. <Link href={browseHref}>View meals</Link></> });
+    } catch (cause) {
+      let content = cause instanceof Error ? cause.message : "Could not publish. Your choices are kept. Try again.";
+      if (cause instanceof ApiRequestError && cause.fields && Object.keys(cause.fields).length) {
+        content = Object.values(cause.fields).join(" ");
+      }
+      if (cause instanceof ZodError) {
+        content = cause.issues.map((issue) => issue.message).join(" ");
+      }
+      setFeedback({ tone: "error", content });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <main className={`page ${styles.page} ${styles.postPage}`}>
+    <header className={styles.hero}><p className="planning-eyebrow">Eat out / sample listing</p><h1>Share a spare meal.</h1><p>Choose a sample. Set the price and pickup.</p></header>
+    <aside className="planning-notice"><strong>Fictional meals only.</strong><br />{source === "local" ? "Saved in this browser." : "Shared storage. Sign-in required."} No merchant is contacted or food arranged.</aside>
+    <form id="sample-meal-form" onSubmit={handleSubmit}>
+      <fieldset disabled={busy} className={styles.formFields}>
+        <div className="field"><label htmlFor="sample-meal">Sample meal</label><select id="sample-meal" value={mealId} onChange={(event) => chooseMeal(event.target.value)}>{samples.map((sample) => <option key={sample.id} value={sample.id}>{sample.title} · {sample.merchantName}</option>)}</select></div>
+        <section className={`card ${styles.preview}`} aria-label="Sample meal details">
+          <DishArt id={meal.id} title={meal.title} />
+          <h2>{meal.title}</h2><p>{meal.merchantName}</p><p>{meal.address}</p>
+          <p><strong>Allergens:</strong> {meal.allergens.length ? meal.allergens.join(", ") : "None declared; not guaranteed allergen-free."}</p>
+        </section>
+        <section className={`card ${styles.formCard}`} aria-labelledby="meal-price-heading"><h2 id="meal-price-heading">Price & portions</h2>
+          <RangeField id="listing-original-price" label="Original price · CAD" value={origPrice} min={1} max={50} step={0.01} buttonStep={1} format={money} onChange={(value) => {
+            setOrigPrice(value); setPrice((current) => Math.min(current, value));
+            setFeedback({ tone: "success", content: <>Original price set to <strong>{money(value)}</strong>. Surplus price stays at or below it.</> });
+          }} />
+          <RangeField id="listing-price" label="Surplus price · CAD" value={price} min={0} max={origPrice} step={0.01} buttonStep={1} format={money} onChange={(value) => {
+            setPrice(value); setFeedback({ tone: "success", content: <>Surplus price set to <strong>{money(value)}</strong>.</> });
+          }} />
+          <RangeField id="listing-quantity" label="Portions available" value={qtyLeft} min={1} max={20} onChange={(value) => {
+            setQtyLeft(value); setFeedback({ tone: "success", content: <><strong>{value} portions</strong> available.</> });
+          }} />
+        </section>
+        <section className={`card ${styles.formCard}`} aria-labelledby="meal-pickup-heading"><h2 id="meal-pickup-heading">Pickup window</h2>
+          <div className="field"><label htmlFor="pickup-delay">Starts</label><select id="pickup-delay" value={delay} onChange={(event) => {
+            const value = Number(event.target.value); setDelay(value);
+            setFeedback({ tone: "success", content: <>Pickup starts <strong>{value === 0 ? "when published" : `${value} minutes after publishing`}</strong>.</> });
+          }}>{PICKUP_DELAYS.map((value) => <option key={value} value={value}>{value === 0 ? "When published" : `${value} minutes after publishing`}</option>)}</select></div>
+          <div className="field"><label htmlFor="pickup-duration">Stays open for</label><select id="pickup-duration" value={duration} onChange={(event) => {
+            const value = Number(event.target.value); setDuration(value);
+            setFeedback({ tone: "success", content: <>Pickup stays open for <strong>{value} minutes</strong>.</> });
+          }}>{PICKUP_DURATIONS.map((value) => <option key={value} value={value}>{value} minutes</option>)}</select></div>
+          <p className={styles.hint}>The window starts relative to publishing. Meals display Vancouver time.</p>
+        </section>
+      </fieldset>
     </form>
+    <SurplusFeedback feedback={feedback} />
+    <footer className="action-bar"><Link className="btn" href={browseHref}>Cancel</Link><button className="btn primary" type="submit" form="sample-meal-form" disabled={busy}>{busy ? "Publishing…" : "Publish sample"}</button></footer>
   </main>;
 }

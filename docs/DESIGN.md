@@ -5,7 +5,7 @@ in the same PR so it stays the single source of truth.
 
 - **Tokens and shared classes:** `src/app/globals.css`
 - **Shared components:** `src/components/` (`top-bar.tsx`, `range-field.tsx`, `brand.tsx`)
-- **Community screens** (Food support, Eat out): `src/features/community.module.css`. It uses the same tokens.
+- **Community screens:** Food support uses `src/features/community.module.css`; Eat out uses `src/features/surplus/surplus.module.css`. Both use the same tokens and shared controls.
 - **Cooking mode:** `src/features/cooking/cooking.module.css`. It uses the same fonts and tokens.
 
 Mobile first: design at **390 × 844**. The app column is at most **440px** wide and centred on larger screens.
@@ -192,6 +192,17 @@ Paginate instead of one long strip: a few items per page (Eat Out: 3) with **Pre
 ### Photos and illustrations
 - Photos: JPEG, about 760px wide, under 150 KB. Put them in `public/images/`.
 - Dishes without a photo use the drawn tiles in `src/features/surplus/dish-art.tsx`. Don't use stock photos of real brands.
+
+### Eat out
+
+- Start with the shared `LocationPicker` and its distance circle. Keep the saved shopping area when available, allow Skip to browse all meals by price, and show three meals per page with a location summary and Change action.
+- `/eat-out` and `/eat-out/shared` share one layout. A pill switch distinguishes their storage modes; sample notices and meal labels explain that fictional offers do not hold real food.
+- Meal cards show artwork, availability, merchant, Vancouver pickup window and CAD prices. Available only hides ended and sold-out meals; available meals lead the list. The pickup radius applies to both sort orders.
+- View meal opens a native modal bottom sheet with the address, allergens, description and the sole primary reservation action. Escape and Close dismiss it; focus returns to the meal button or availability filter if the card has disappeared. The reservation action follows the details without covering them.
+- Publishing is a sample composer. Choose one of the existing eight fictional meals, keeping merchant, address, coordinates and allergen declarations together. The API still accepts validated listing drafts.
+- Prices and portions use `RangeField`. Sample UI limits: original price CAD 1–50, surplus price CAD 0–original, portions 1–20. Lowering the original price also lowers the surplus price when needed.
+- Ordered pickup choices are relative to publishing (now / 30 / 60 / 120 minutes; open for 30 / 60 / 120 minutes). Resolve them in UTC on submit and display them in Vancouver time.
+- Publishing feedback and the shared action bar follow the form. Choices remain after errors. Success uses green with the meal or changed value in bold; errors use bold danger text.
 
 ---
 

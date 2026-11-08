@@ -13,7 +13,7 @@ function pin(L: Leaflet, label: string, active: boolean) {
 }
 
 // OpenStreetMap tiles through Leaflet: no API key. Leaflet touches `window`, so it loads in the browser only.
-export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map of food support locations" }: { points: MapPoint[]; activeId?: string; onSelect: (id: string) => void; radiusKm?: number; label?: string }) {
+export function SupportMap({ points, activeId, onSelect, radiusKm, animate = true, label = "Map of food support locations" }: { points: MapPoint[]; activeId?: string; onSelect: (id: string) => void; radiusKm?: number; animate?: boolean; label?: string }) {
   const element = useRef<HTMLDivElement>(null);
   const leaflet = useRef<Leaflet | null>(null);
   const map = useRef<LeafletMap | null>(null);
@@ -28,12 +28,18 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
   useEffect(() => {
     let cancelled = false;
     void import("leaflet").then((L) => {
-      if (cancelled || !element.current || map.current) return;
+      if (cancelled || !element.current || map.current) {
+        return;
+      }
       leaflet.current = L;
-      // No starting view here: the first draw sets it from the points, so the map doesn't open over
-      // central Vancouver and then jump. Only an empty map gets the city view.
-      map.current = L.map(element.current, { scrollWheelZoom: false });
-      if (!latest.current.length) map.current.setView([49.265, -123.17], 12);
+      const motion = animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // A location step can unmount immediately after a radius change. Disable its
+      // zoom transition so Leaflet cannot finish a timer against removed map panes.
+      map.current = L.map(element.current, { scrollWheelZoom: false, zoomAnimation: motion, fadeAnimation: motion });
+      // Start at the supplied points; only an empty map needs the city fallback.
+      if (!latest.current.length) {
+        map.current.setView([49.265, -123.17], 12);
+      }
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
@@ -45,16 +51,19 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
       cancelled = true;
       map.current?.remove();
       map.current = null;
+      circle.current = null;
       markerMap.clear();
     };
-  }, []);
+  }, [animate]);
 
   // Redraw markers and fit the view when the filtered list changes.
   useEffect(() => {
     const node = element.current;
     function draw() {
       const L = leaflet.current;
-      if (!L || !map.current) return;
+      if (!L || !map.current) {
+        return;
+      }
       markers.current.forEach((marker) => marker.remove());
       markers.current.clear();
       circle.current?.remove();
@@ -67,10 +76,13 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
       if (radiusKm && points.length === 1) {
         // A distance setting: show the whole circle so the slider visibly changes the map.
         circle.current = L.circle([points[0].lat, points[0].lng], { radius: radiusKm * 1000, color: "#00704a", weight: 2, fillOpacity: 0.08 }).addTo(map.current);
-        // From the centre and radius: works before the map has a view (circle.getBounds() doesn't).
+        // Geographic bounds work before the map has its first projected view.
         map.current.fitBounds(L.latLng(points[0].lat, points[0].lng).toBounds(radiusKm * 2000), { padding: [12, 12] });
-      } else if (points.length > 1) map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
-      else if (points.length === 1) map.current.setView([points[0].lat, points[0].lng], 15);
+      } else if (points.length > 1) {
+        map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
+      } else if (points.length === 1) {
+        map.current.setView([points[0].lat, points[0].lng], 15);
+      }
     }
     draw();
     node?.addEventListener("leaflet-ready", draw);
@@ -80,11 +92,18 @@ export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map 
   // Highlight the selected place without re-fitting the whole map.
   useEffect(() => {
     const L = leaflet.current;
-    if (!L || !map.current) return;
-    for (const point of points) markers.current.get(point.id)?.setIcon(pin(L, point.label, point.id === activeId));
+    if (!L || !map.current) {
+      return;
+    }
+    for (const point of points) {
+      markers.current.get(point.id)?.setIcon(pin(L, point.label, point.id === activeId));
+    }
     const active = points.find((point) => point.id === activeId);
-    if (active) map.current.panTo([active.lat, active.lng]);
-  }, [activeId, points]);
+    if (active) {
+      const motion = animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      map.current.panTo([active.lat, active.lng], { animate: motion });
+    }
+  }, [activeId, points, animate]);
 
   return <div className="support-map" ref={element} role="region" aria-label={label} />;
 }
