@@ -288,3 +288,26 @@ export interface SurplusListing {
   isSample: boolean; // shown as "sample data" in the UI
   createdAt: string;
 }
+
+// ---------- API errors (everyone) ----------
+// Every non-2xx JSON response uses this shape. Build it with `apiError()` from "@/lib/api-error".
+// `error` is safe to show to users as-is; technical details (SQL, provider bodies, stacks) stay in server logs.
+
+export type ApiErrorCode =
+  | "VALIDATION_FAILED" // 400: body or query does not match the schema; see `fields`
+  | "UNAUTHORIZED" // 401: not logged in
+  | "FORBIDDEN" // 403: logged in but not allowed
+  | "NOT_FOUND" // 404
+  | "CONFLICT" // 409: e.g. stale update, profile required first
+  | "PAYLOAD_TOO_LARGE" // 413
+  | "UNPROCESSABLE" // 422: well-formed but cannot be used, e.g. unreadable price, no plan fits
+  | "INTERNAL" // 500: a bug on our side
+  | "UPSTREAM_FAILED" // 502: Gemini or another provider failed
+  | "SERVICE_UNAVAILABLE" // 503: not configured or temporarily down (try again later)
+  | "DATABASE_UNAVAILABLE"; // 503: the database is not configured or unreachable
+
+export interface ApiError {
+  error: string; // one user-facing sentence
+  code: ApiErrorCode;
+  fields?: Record<string, string>; // field path -> message, for VALIDATION_FAILED / UNPROCESSABLE
+}

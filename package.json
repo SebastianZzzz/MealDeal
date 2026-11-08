@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:seed:catalog": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/load-catalog-seed.mts",
+    "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/*.test.mts",
     "test:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/features/catalog/*.test.mts",
     "seed:catalog": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-catalog-seed.mts",
     "test:planning": "tsc -p tsconfig.planning-tests.json && node --import ./tests/planning-paths.mjs --test .test-build/tests/planning.test.js",
