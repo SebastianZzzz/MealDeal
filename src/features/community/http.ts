@@ -1,5 +1,6 @@
 import type { SurplusRepository } from "../surplus/repository";
 import { validDraft } from "../surplus/inventory";
+import { isListingId } from "./database";
 
 export interface ApiDependencies {
   identity: () => Promise<{ sub: string } | null>;
@@ -51,7 +52,7 @@ export function createSurplusHandlers(deps: ApiDependencies) {
     async reserve(id: string) {
       try {
         if (!await deps.identity()) return json({ error: "Please sign in before reserving." }, 401);
-        if (!id.trim() || id.length > 200) return json({ error: "Invalid listing ID." }, 400);
+        if (!isListingId(id)) return json({ error: "Invalid listing ID." }, 400);
         const repository = await deps.surplus();
         if (!repository) return unavailable();
         const listing = await repository.reserve(id);

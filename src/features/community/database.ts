@@ -5,13 +5,15 @@ export interface Database {
 
 export class UpdateConflict extends Error {}
 
+/** Reuse A's server-only pool. Missing configuration never falls back to writes. */
 export async function getDDatabase(): Promise<Database | null> {
   if (!process.env.DATABASE_URL) return null;
-  const { db } = await import("@/lib/db");
-  return {
-    query: async (sql, parameters) => {
-      const result = await db.query(sql, parameters);
-      return { rows: result.rows as Record<string, unknown>[] };
-    },
-  };
+  const { assertDatabaseConfigured, db } = await import("@/lib/db");
+  assertDatabaseConfigured();
+  return { query: (sql, parameters) => db.query(sql, parameters) };
 }
+
+/** Cooking plans use UUIDs; the surplus table deliberately uses text IDs. */
+export const isDatabaseId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+export const isListingId = (id: string) => id.trim().length > 0 && id.length <= 200;

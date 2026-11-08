@@ -18,7 +18,7 @@ successfully persists them to the shared database.
 - `/cook/cooking`: cook the selected plan; `/cook/demo`: independent sample plan.
 - `/support`: curated food resources; `/api/resources`: resource query API.
 - `/eat-out` and `/eat-out/post`: local sample listings and reservations.
-- `/eat-out/shared` and `/eat-out/shared/post`: shared API preview, pending the database adapter.
+- `/eat-out/shared` and `/eat-out/shared/post`: shared inventory, requiring database configuration.
 
 Run D tests with Node.js 22.18 or newer:
 

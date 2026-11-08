@@ -32,15 +32,21 @@ Reference: https://www.w3.org/TR/web-locks/
 ## Shared service preview
 
 `/eat-out/shared` and `/eat-out/shared/post` call `GET/POST /api/surplus`
-and `POST /api/surplus/[id]/reserve`. Writes require Auth0. Server-generated IDs
-and Auth0 ownership replace client claims; new listings remain labeled samples.
+and `POST /api/surplus/[id]/reserve`. Writes use A's authenticated identity
+(Auth0 in production; A's demo identity is development-only). New IDs are generated
+by the server; the text ID column also accepts existing non-UUID sample IDs.
+Client ownership/verification claims are ignored; `posted_by` uses the server
+identity and new listings remain labeled samples.
 The repository uses one parameterized conditional update with `qty_left > 0`
 and an unexpired pickup window. Returning no row means 409, not success.
 
-A will later supply Tiger Data through `src/lib/db.ts`. D's resolver currently
-returns null, so the shared service returns 503 until connected; it never
-silently writes local inventory instead. The proposed `sql/d-surplus.sql`
-migration has not been applied. See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md).
+A supplies Tiger Data through `src/lib/db.ts`; D now reuses that pool. Missing
+`DATABASE_URL` or a connection failure returns 503 without silently writing local
+inventory. A's canonical migration owns the schema; `sql/d-surplus.sql` is a
+matching reference, not another migration. Posting supplies the required
+`posted_by` field. Reservations do not touch `updated_at`, which A's surplus
+alignment migration removes. Cooking tables retain their UUID IDs and timestamp.
+See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md).
 The local demo guarantee and query tests do not prove database concurrency.
 
 ## Validation and checks
@@ -58,4 +64,4 @@ Manual checks: post, browse, reserve, refresh, two-tab final-portion race,
 location denied, expired pickup, sold-out stock, and storage denied. API tests
 also cover sign-in, validation, disconnected storage, server ownership and
 conditional-update conflicts. Use [the acceptance checklist](../../../docs/D-ACCEPTANCE.md)
-for the two-client database test after A connects the adapter.
+for the two-client database test after database configuration/migrations.

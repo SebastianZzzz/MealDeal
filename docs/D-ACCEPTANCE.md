@@ -1,7 +1,7 @@
 # D acceptance and demo rehearsal
 
 This is a manual acceptance script, not a claim that these checks have passed.
-Use the integrated team build for C's pages; this D branch does not merge them.
+Use the integrated team build with A's database foundation and C's pages.
 
 ## Cooking: required demo path
 
@@ -52,11 +52,14 @@ Use the integrated team build for C's pages; this D branch does not merge them.
 - Deny location: browsing by price remains available. Deny storage: do not report
   a successful reservation. Sample labels must remain visible.
 
-## Shared database: pending A's adapter
+## Shared database: requires configuration and C's persisted-plan handoff
 
-1. A applies the reviewed schema and connects `getDDatabase()` to its shared pool.
-   A/C insert a real owned plan using Auth0 `sub` as `user_id`.
-2. With no sign-in, posting, reserving and cooking sync must return 401.
+1. A applies the canonical migrations and configures `DATABASE_URL`. D already
+   reuses A's pool. A/C insert a UUID plan using `users.id` as `user_id` and
+   persist the shopping-complete state. `users.auth0_id` holds the Auth0 sub.
+   C saves that returned plan UUID and database user UUID in the browser plan.
+2. In production, with no sign-in, posting, reserving and cooking sync must
+   return 401. A's development-only demo identity must not work in production.
 3. With a signed-in owner, save then restore progress in a separate browser.
    A different account must receive 404 for that plan, never its recipe data.
 4. Insert a sample listing with exactly one portion. Use two independent browser
@@ -66,6 +69,16 @@ Use the integrated team build for C's pages; this D branch does not merge them.
    success. Refresh/list requests must reflect stock across devices.
 6. Force another plan update between the progress read and write; the stale
    update must return 409 and preserve shopping data.
+7. Attempt cooking account sync with an old option/local ID. Return 400 without
+   a database query; local cooking must still work. Surplus IDs are text: check
+   a valid existing non-UUID listing ID as well as empty/overlong invalid IDs.
+8. Post through `/eat-out/shared/post`. Check that `posted_by` uses the server
+   identity and `is_sample = true`. Cooking updates change `updated_at`; surplus
+   reservations must work without that removed column. `/eat-out` remains the
+   local demo.
+9. On a test database with A's earlier UUID surplus schema, apply
+   `20261107203800_align_surplus_with_d.sql`. Confirm old rows survive, text IDs
+   can be inserted, and posting/reserving work with the upgraded schema.
 
 ## Backup demo
 
