@@ -124,6 +124,26 @@ export async function insertObservation(
   );
 }
 
+// Price history for one product in [since, until), oldest first.
+export async function selectHistory(
+  db: Queryable,
+  productId: string,
+  since: string,
+  until: string,
+): Promise<{ pricePer100: number; observedAt: string; source: "flyer" | "report" | "sample" }[]> {
+  const { rows } = await db.query(
+    `select time, price_per_100, source from price_observations
+     where product_id = $1 and time >= $2 and time < $3
+     order by time`,
+    [productId, since, until],
+  );
+  return rows.map((row) => ({
+    pricePer100: num(row.price_per_100),
+    observedAt: iso(row.time),
+    source: row.source as "flyer" | "report" | "sample",
+  }));
+}
+
 // Current price plus its history row, atomically.
 export async function recordPrice(db: Queryable, product: Product): Promise<void> {
   await db.query("begin");

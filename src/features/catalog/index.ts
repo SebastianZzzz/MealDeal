@@ -2,3 +2,4 @@
 export { listProducts, getProduct, listKnownStores, getStore, isExpired } from "./repo.ts";
 export { normalizePrice, parsePrice, parseSize } from "./pricing.ts";
 export { distanceKm, type NearbyStore } from "./stores.ts";
+export { getDealCheck } from "./deal-check.ts";
