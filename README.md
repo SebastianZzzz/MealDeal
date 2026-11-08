@@ -14,51 +14,27 @@ The default environment enables demo mode, so onboarding works with browser stor
 
 ## Cooking and community features (D)
 
-Open `/cook/cooking` for the selected plan saved by C at `mealdeal.currentPlan`.
-The route validates the plan, requires completed shopping, and writes only
-cooking progress/status back to the shared plan. Quantities and times are already
-scaled by C; D only converts grams to the saved weight display unit.
+- `/cook/cooking`: cook the selected plan; `/cook/demo`: independent sample plan.
+- `/support`: curated food resources; `/api/resources`: resource query API.
+- `/eat-out` and `/eat-out/post`: local sample listings and reservations.
+- `/eat-out/shared` and `/eat-out/shared/post`: shared API preview, pending the database adapter.
 
-`/cook/demo` remains an independent sample recipe demo with step progression,
-timers, and local recovery after refresh. D's pages link to it. A owns the home
-page and its entry points. Missing current plans link to planning and the demo.
-
-`/support` contains four curated Vancouver/UBC resources with official source
-links, verified dates, and a check-before-you-go notice. `/eat-out` and
-`/eat-out/post` provide a browser-local sample surplus posting/reservation flow.
-Web Locks serialize stock updates across cooperating tabs. All local merchants
-and reservations are examples. `/eat-out/shared` uses D's shared HTTP API;
-it remains unavailable until A's database adapter is connected. The resources
-API is available now at `/api/resources`. Cooking offers explicit account
-save/restore through owner-scoped progress endpoints, with local saving retained.
-
-Run the timer/progress tests with Node.js 22.18 or newer:
+Run D tests with Node.js 22.18 or newer:
 
 ```bash
 node --experimental-strip-types --import ./tests/d-paths.mjs --test tests/d-api.test.mjs src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
 ```
 
-If the local environment blocks Turbopack's internal port, build with
-`npm run build -- --webpack`. See `src/features/cooking/README.md` for C/A
-integration details and manual checks. Cloud progress saving is not yet connected.
-See [D's backend handoff](docs/D-BACKEND-HANDOFF.md),
-[acceptance checklist](docs/D-ACCEPTANCE.md), [pitch draft](docs/PITCH.md), and
-[Devpost draft](docs/DEVPOST.md). The SQL proposal has not been applied; the
-manual acceptance checklist and submission drafts still require team review.
-
-## Authentication and later persistence
+## Connect Auth0 and Supabase
 
 1. Create a Regular Web Application in Auth0. Set callback URL to `http://localhost:3000/auth/callback` and logout URL to `http://localhost:3000`.
 2. Fill the Auth0 variables in `.env.local`.
-3. Set `NEXT_PUBLIC_DEMO_MODE=0` when requiring real Auth0 sign-in.
+3. Create a Supabase project and run the files in `supabase/migrations` in filename order.
+4. Add `SUPABASE_URL` and the server-only service role key to `.env.local`.
+5. Set `NEXT_PUBLIC_DEMO_MODE=0` before production deployment.
 
-Auth0 is the only identity provider. Use mock JSON and localStorage for the
-current development milestone. A owns the later Tiger Data integration via
-`src/lib/db.ts`; legacy database adapters in the initial scaffold are awaiting
-that migration. D adds no database service, image storage, or cloud credentials.
+Auth0 owns identity. Next.js validates the encrypted Auth0 session and performs profile writes server-side. The Supabase service role key is never sent to the browser.
 
 ## Shared contracts
 
-The shared contract is `src/types.ts`, imported via `@/types`. Do not edit it on
-feature branches. Older scaffold types in `src/contracts` are not the shared
-contract. See `CONTRIBUTING.md` for the team workflow.
+Shared contracts live in `src/contracts`. Other feature branches should import these rather than defining duplicates. See `docs/ARCHITECTURE.md` and `CONTRIBUTING.md` before starting a feature branch.
