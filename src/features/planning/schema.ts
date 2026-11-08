@@ -30,6 +30,8 @@ export const profileSchema = z.object({
   meatVeg: z.enum(["mostly_meat", "balanced", "mostly_veg", "vegetarian"]),
   defaultServings: z.number().int().min(1).max(20),
   equipment: z.array(z.enum(["stove", "pot", "pan", "rice_cooker", "microwave", "oven", "air_fryer", "kettle"])).max(8),
+  customEquipment: z.array(z.string().trim().min(2).max(40)).max(20).optional(),
+  customNutritionGoal: z.string().trim().min(2).max(40).optional(),
   maxDistanceKm: z.number().min(0.1).max(50),
   home: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
   nutritionGoal: z.enum(["none", "high_protein", "low_calorie", "balanced"]).optional(),
@@ -77,3 +79,4 @@ export const draftResponseSchema = z.object({ options: z.array(z.unknown()).min(
 export type DraftRecipe = z.infer<typeof draftRecipeSchema>;
 export type DraftOption = z.infer<typeof draftOptionSchema>;
 export type PlanningInput = z.infer<typeof planInputSchema>;
+export type PlanningProfile = z.infer<typeof profileSchema>;

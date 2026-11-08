@@ -22,7 +22,9 @@ export function CurrentPlanView() {
   }, []);
 
   if (!saved.ready) return <main className="page"><p role="status">Loading your meal plan…</p></main>;
-  if (!saved.plan) return <main className="page"><p className="muted">YOUR KITCHEN</p><h1>Something good starts with a plan.</h1><p className="muted" role="status">{saved.error || "Choose a meal and finish shopping. Your recipes will be waiting here."}</p><div className="chips"><Link className="btn" href="/cook/plan">Plan a meal</Link><Link className="btn secondary" href="/cook/demo">Try the cooking demo</Link></div></main>;
+  if (!saved.plan) {
+    return <main className="page"><p className="muted">YOUR KITCHEN</p><h1>Something good starts with a plan.</h1><p className="muted" role="status">{saved.error || "Choose a meal and finish shopping. Your recipes will be waiting here."}</p><div className="chips"><Link className="btn" href="/cook/plan">Plan a meal</Link><Link className="btn secondary" href="/cook/resume">Continue a saved plan</Link><Link className="btn secondary" href="/cook/demo">Try the cooking demo</Link></div></main>;
+  }
   if (!canCook(saved.plan)) return <main className="page"><h1>Your ingredients come first.</h1><p className="muted">Check off your shopping list before starting the cooking steps.</p><Link className="btn" href="/cook/shopping">Back to shopping</Link></main>;
   return <CookingGuide key={`${saved.plan.userId}:${saved.plan.id}:${JSON.stringify(saved.plan.chosen.recipes)}:${JSON.stringify(saved.plan.progress)}`} plan={saved.plan} />;
 }

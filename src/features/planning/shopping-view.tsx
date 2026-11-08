@@ -12,7 +12,7 @@ import { dealLabel } from "./deals";
 import { plural } from "@/lib/plural";
 import { ScreenHeader } from "@/components/screen-header";
 import { Camera } from "lucide-react";
-import { syncShopping } from "./plan-sync";
+import { isAccountPlan, syncShopping } from "./plan-sync";
 
 export function ShoppingView() {
   const saved = useSaved(mealPlanStore.getSelected);
@@ -20,7 +20,7 @@ export function ShoppingView() {
     return <main className="page"><p role="status">Loading your shopping list…</p></main>;
   }
   if (!saved.value) {
-    return <main className="page"><h1>Your shopping list starts here</h1><Link className="btn" href="/cook/plan">Plan a meal</Link></main>;
+    return <main className="page"><h1>Your shopping list starts here</h1><Link className="btn" href="/cook/plan">Plan a meal</Link><Link className="btn secondary" href="/cook/resume">Continue a saved plan</Link></main>;
   }
   return <ShoppingList initialPlan={saved.value} />;
 }
@@ -28,6 +28,7 @@ export function ShoppingView() {
 function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
   const [plan, setPlan] = useState(initialPlan);
   const [error, setError] = useState("");
+  const [syncWarning, setSyncWarning] = useState("");
   const router = useRouter();
   const saved = mealPlanStore.getOptions();
   const storeIds = [...new Set(plan.chosen.shoppingList.map((item) => item.storeId))];
@@ -35,13 +36,22 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
   const total = plan.chosen.shoppingList.length;
   const deals = useProductDeals(plan.chosen.shoppingList);
 
+  function sync(next: MealPlan): void {
+    if (!isAccountPlan(next)) {
+      return;
+    }
+    void syncShopping(next).then((saved) => {
+      setSyncWarning(saved ? "" : "Your changes are saved on this device. The account copy could not be updated; another device may have changed this plan.");
+    });
+  }
+
   function save(next: MealPlan): boolean {
     try {
       mealPlanStore.setSelected(next);
       setPlan(next);
       setError("");
       // Best effort: the browser copy keeps working even if the account copy can't be updated.
-      void syncShopping(next);
+      sync(next);
       return true;
     } catch {
       setError("Could not save your progress. Enable browser storage and try again.");
@@ -92,6 +102,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
       </section>;
     })}
     {error && <p role="alert" className="planning-error">{error}</p>}
+    {syncWarning && <div className="planning-notice" role="status"><p>{syncWarning}</p><Link href="/cook/resume">Review saved account plans</Link><button type="button" className="btn secondary" onClick={() => sync(plan)}>Retry account save</button></div>}
     {bought === total && <button type="button" className="btn primary planning-full" onClick={finish}>Start cooking →</button>}
     <p className="planning-small muted">{bought === total ? "Your ingredients are ready. Your plan is saved on this device." : "Check off each item after buying it to finish shopping."}</p>
   </main>;

@@ -54,6 +54,16 @@ export async function POST(request: Request) {
   if (pantryProblem) {
     return apiError(pantryProblem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", pantryProblem.check.message, { [`pantry.${pantryProblem.index}.name`]: pantryProblem.check.message });
   }
+  for (const [field, kind, values] of [
+    ["customEquipment", "equipment", parsed.data.profile.customEquipment ?? []],
+    ["customNutritionGoal", "goal", parsed.data.profile.customNutritionGoal ? [parsed.data.profile.customNutritionGoal] : []],
+  ] as const) {
+    const problem = await firstChoiceProblem(kind, [...values]);
+    if (problem) {
+      const path = field === "customEquipment" ? `profile.${field}.${problem.index}` : `profile.${field}`;
+      return apiError(problem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", problem.check.message, { [path]: problem.check.message });
+    }
+  }
   try {
     return NextResponse.json(await generatePlan(parsed.data), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
