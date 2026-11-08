@@ -1,5 +1,18 @@
 // Canadian postal code -> approximate point, so a student can set a shopping area without sharing GPS.
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+const REVERSE = "https://nominatim.openstreetmap.org/reverse";
+
+/** Neighbourhood-level name for a point, e.g. "Point Grey, Vancouver", so people can check we found them. */
+export async function describeArea(lat: number, lng: number): Promise<string | null> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: "jsonv2", zoom: "14" });
+  const response = await fetch(`${REVERSE}?${params}`, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`Nominatim responded ${response.status}`);
+  const place = await response.json() as { address?: Record<string, string> };
+  const a = place.address ?? {};
+  const local = a.neighbourhood ?? a.suburb ?? a.quarter ?? a.city_district;
+  const city = a.city ?? a.town ?? a.village ?? a.municipality;
+  return [local, city].filter(Boolean).join(", ") || null;
+}
 const USER_AGENT = "MealDeal/0.1 (HackCamp 2026)";
 const cache = new Map<string, { lat: number; lng: number } | null>();
 

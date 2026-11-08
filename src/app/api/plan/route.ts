@@ -3,6 +3,7 @@ import { getIdentity } from "@/lib/session";
 import { planInputSchema } from "@/features/planning/schema";
 import { generatePlan, PlanningError } from "@/features/planning/service";
 import { apiError, validationError } from "@/lib/api-error";
+import { firstChoiceProblem } from "@/lib/choice-model";
 import type { ApiErrorCode } from "@/types";
 
 export const runtime = "nodejs";
@@ -40,6 +41,14 @@ export async function POST(request: Request) {
   const parsed = planInputSchema.safeParse(body);
   if (!parsed.success) {
     return validationError(parsed.error, "Check your meal details and kitchen profile.");
+  }
+  // The profile comes from the browser, so diet and allergy entries are checked again before they
+  // can reach the prompt.
+  for (const [field, kind] of [["dietary", "dietary"], ["allergies", "allergy"]] as const) {
+    const problem = await firstChoiceProblem(kind, parsed.data.profile[field]);
+    if (problem) {
+      return apiError(problem.check.retry ? "SERVICE_UNAVAILABLE" : "VALIDATION_FAILED", problem.check.message, { [`profile.${field}.${problem.index}`]: problem.check.message });
+    }
   }
   try {
     return NextResponse.json(await generatePlan(parsed.data), { headers: { "Cache-Control": "no-store" } });

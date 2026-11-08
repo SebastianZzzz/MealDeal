@@ -8,6 +8,8 @@ import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 import { RangeField } from "@/components/range-field";
+import { classifyCustomChoice, formatProblem, type ChoiceKind } from "@/lib/custom-choices";
+import { SupportMap } from "@/features/support/support-map";
 import { LocateFixed, Trash2, X } from "lucide-react";
 
 const options = {
@@ -31,15 +33,38 @@ function stepForFields(fields: Record<string, string>, fallback: number) {
 const NUTRITION_GOALS = ["High protein", "Balanced", "Low calorie"];
 
 // Optional free-text entry under a group of choices: adds the item and selects it.
-function OtherInput({ label, values, selected, note, onNote, onAdd, onSelect }: {
-  label: string; values: string[]; selected: string[]; note: string; onNote: (note: string) => void;
+function OtherInput({ kind, label, values, selected, note, onNote, onAdd, onSelect }: {
+  kind: ChoiceKind; label: string; values: string[]; selected: string[]; note: string; onNote: (note: string) => void;
   onAdd: (value: string) => void; onSelect: (value: string) => void;
 }) {
   const [text, setText] = useState("");
-  function add() {
+  const [checking, setChecking] = useState(false);
+  // Known words are added at once; unusual ones are checked by the server (smallest model).
+  async function allowed(value: string) {
+    const verdict = classifyCustomChoice(kind, value);
+    if (verdict === "bad-format") { onNote(formatProblem(kind)); return false; }
+    if (verdict === "ok") return true;
+    setChecking(true);
+    onNote(`Checking "${value}"…`);
+    try {
+      const response = await fetch("/api/choices/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, value }) });
+      if (!response.ok) { onNote((await readApiError(response)).error); return false; }
+      const result = await response.json() as { ok: boolean; message?: string };
+      if (!result.ok) onNote(result.message ?? "That doesn't look like something plans can use.");
+      return result.ok;
+    } catch {
+      // Fail closed: the server re-checks on save anyway.
+      onNote(`We couldn't check "${value}" right now. Try again in a minute, or pick from the list.`);
+      return false;
+    } finally {
+      setChecking(false);
+    }
+  }
+  async function add() {
     const value = text.trim().replace(/\s+/g, " ");
     if (!value) return;
     const existing = values.find((item) => item.toLowerCase() === value.toLowerCase());
+    if (!existing && !(await allowed(value))) return;
     if (existing && selected.includes(existing)) onNote(`${existing} is already in the list.`);
     else if (existing) { onSelect(existing); onNote(`${existing} was already in the list, so it is selected now.`); }
     else { onAdd(value); onSelect(value); onNote(`${value} added and selected.`); }
@@ -47,10 +72,10 @@ function OtherInput({ label, values, selected, note, onNote, onAdd, onSelect }: 
   }
   return <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
     <div style={{ display: "flex", gap: 8 }}>
-      <input aria-label={`Other ${label}`} placeholder="Other (optional)" maxLength={60} value={text} onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); add(); } }}
+      <input aria-label={`Other ${label}`} placeholder="Other (optional)" maxLength={40} autoComplete="off" autoCorrect="off" spellCheck={false} value={text} onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void add(); } }}
         className="text-input" style={{ flex: 1, minWidth: 0 }} />
-      <button type="button" className="btn secondary" disabled={!text.trim()} onClick={add}>Add</button>
+      <button type="button" className="btn secondary" disabled={!text.trim() || checking} onClick={() => void add()}>{checking ? "…" : "Add"}</button>
     </div>
     <span className="muted" role="status" style={{ fontSize: 14, fontWeight: 400, minHeight: 20 }}>{note}</span>
   </div>;
@@ -89,6 +114,9 @@ export function OnboardingForm() {
   const [locating, setLocating] = useState(false);
   const [postal, setPostal] = useState("");
   const [placeNote, setPlaceNote] = useState("");
+  const [placeError, setPlaceError] = useState(false);
+  // Opened from the kitchen check to change one thing: show "Save changes" on that step.
+  const [editingOne, setEditingOne] = useState(false);
   const addCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].includes(value) ? current[key] : [...current[key], value] }));
   const dropCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].filter((item) => item !== value) }));
   const [saving, setSaving] = useState(false);
@@ -100,7 +128,7 @@ export function OnboardingForm() {
   useEffect(() => {
     // /onboarding?step=4 opens one step directly (the kitchen check links here).
     const requested = Number(new URLSearchParams(window.location.search).get("step"));
-    if (Number.isInteger(requested) && requested >= 1 && requested <= 5) Promise.resolve().then(() => setStep(requested - 1));
+    if (Number.isInteger(requested) && requested >= 1 && requested <= 5) Promise.resolve().then(() => { setStep(requested - 1); setEditingOne(true); });
   }, []);
 
   useEffect(() => {
@@ -141,14 +169,34 @@ export function OnboardingForm() {
     if (removed) setNotes((current) => ({ ...current, pantry: `${removed.name} removed.` }));
   }
 
+  async function describe(lat: number, lng: number) {
+    try {
+      const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
+      if (!response.ok) return null;
+      return (await response.json() as { area: string | null }).area;
+    } catch {
+      return null;
+    }
+  }
+
   function setFromCurrentLocation() {
-    if (!navigator.geolocation) { setPlaceNote("This browser can't share a location. Enter a postal code instead."); return; }
+    setPlaceError(false);
+    if (!navigator.geolocation) { setPlaceError(true); setPlaceNote("This browser can't share a location. Enter a postal code instead."); return; }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition((position) => {
-      setProfile((current) => ({ ...current, home: { lat: Math.round(position.coords.latitude * 1000) / 1000, lng: Math.round(position.coords.longitude * 1000) / 1000 } }));
-      setPlaceNote("Shopping area set from your current location (about 100 m).");
+    setPlaceNote("Finding you…");
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const home = { lat: Math.round(position.coords.latitude * 1000) / 1000, lng: Math.round(position.coords.longitude * 1000) / 1000 };
+      setProfile((current) => ({ ...current, home }));
+      const area = await describe(home.lat, home.lng);
+      setPlaceNote(area ? `Found you near ${area}. Not right? Enter a postal code.` : "Found your location (shown on the map). Not right? Enter a postal code.");
       setLocating(false);
-    }, () => { setPlaceNote("Location was not shared. Enter a postal code instead."); setLocating(false); }, { timeout: 10000, maximumAge: 600000 });
+    }, (failure) => {
+      setPlaceError(true);
+      setPlaceNote(failure.code === failure.PERMISSION_DENIED
+        ? "Location access is off for this site. Allow it (iPhone: Settings > Privacy > Location Services > Safari Websites), or enter a postal code."
+        : failure.code === failure.TIMEOUT ? "Finding your location took too long. Try again, or enter a postal code." : "Your location isn't available right now. Enter a postal code instead.");
+      setLocating(false);
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
   }
 
   async function setFromPostal() {
@@ -157,10 +205,12 @@ export function OnboardingForm() {
     try {
       const response = await fetch(`/api/geocode?postal=${encodeURIComponent(postal.trim())}`);
       if (!response.ok) throw new Error((await readApiError(response)).error);
-      const place = await response.json() as { lat: number; lng: number; postal: string };
+      const place = await response.json() as { lat: number; lng: number; postal: string; area: string | null };
       setProfile((current) => ({ ...current, home: { lat: place.lat, lng: place.lng } }));
-      setPlaceNote(`Shopping area set near ${place.postal}.`);
+      setPlaceError(false);
+      setPlaceNote(`Shopping area set near ${place.postal}${place.area ? ` (${place.area})` : ""}.`);
     } catch (cause) {
+      setPlaceError(true);
       setPlaceNote(cause instanceof Error ? cause.message : "Could not find that postal code.");
     } finally {
       setLocating(false);
@@ -227,14 +277,14 @@ export function OnboardingForm() {
     </section>}
     {step === 1 && <section className="onboarding-section">
       <p className="muted">Rules every plan must follow. You pick cuisines and the meat/veg balance each time you plan.</p>
-      <div className="field" role="group" aria-label="Dietary needs">Dietary needs<Chips values={options.dietary} custom={custom.dietary} onRemove={(value) => { dropCustom("dietary", value); note("dietary")(`${value} removed.`); setProfile(withDietary(profile, profile.dietary.filter((item) => item !== value))); }} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}<OtherInput label="dietary need" values={[...options.dietary, ...custom.dietary]} selected={profile.dietary} note={notes.dietary ?? ""} onNote={note("dietary")} onAdd={(value) => addCustom("dietary", value)} onSelect={(value) => setProfile(withDietary(profile, profile.dietary.includes(value) ? profile.dietary : [...profile.dietary, value]))} /></div>
-      <div className="field" role="group" aria-label="Allergies">Allergies<Chips values={options.allergies} custom={custom.allergies} onRemove={(value) => { dropCustom("allergies", value); note("allergies")(`${value} removed.`); setProfile({ ...profile, allergies: profile.allergies.filter((item) => item !== value) }); }} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /><OtherInput label="allergy" values={[...options.allergies, ...custom.allergies]} selected={profile.allergies} note={notes.allergies ?? ""} onNote={note("allergies")} onAdd={(value) => addCustom("allergies", value)} onSelect={(value) => setProfile({ ...profile, allergies: profile.allergies.includes(value) ? profile.allergies : [...profile.allergies, value] })} /></div>
+      <div className="field" role="group" aria-label="Dietary needs">Dietary needs<Chips values={options.dietary} custom={custom.dietary} onRemove={(value) => { dropCustom("dietary", value); note("dietary")(`${value} removed.`); setProfile(withDietary(profile, profile.dietary.filter((item) => item !== value))); }} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}<OtherInput kind="dietary" label="dietary need" values={[...options.dietary, ...custom.dietary]} selected={profile.dietary} note={notes.dietary ?? ""} onNote={note("dietary")} onAdd={(value) => addCustom("dietary", value)} onSelect={(value) => setProfile(withDietary(profile, profile.dietary.includes(value) ? profile.dietary : [...profile.dietary, value]))} /></div>
+      <div className="field" role="group" aria-label="Allergies">Allergies<Chips values={options.allergies} custom={custom.allergies} onRemove={(value) => { dropCustom("allergies", value); note("allergies")(`${value} removed.`); setProfile({ ...profile, allergies: profile.allergies.filter((item) => item !== value) }); }} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /><OtherInput kind="allergy" label="allergy" values={[...options.allergies, ...custom.allergies]} selected={profile.allergies} note={notes.allergies ?? ""} onNote={note("allergies")} onAdd={(value) => addCustom("allergies", value)} onSelect={(value) => setProfile({ ...profile, allergies: profile.allergies.includes(value) ? profile.allergies : [...profile.allergies, value] })} /></div>
       <RangeField id="default-servings" label="People I usually cook for" value={profile.defaultServings} min={1} max={8} onChange={(defaultServings) => { setProfile({ ...profile, defaultServings }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}
     </section>}
-    {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} custom={custom.equipment} onRemove={(value) => { dropCustom("equipment", value); note("equipment")(`${value} removed.`); setProfile({ ...profile, equipment: profile.equipment.filter((item) => item !== value) }); }} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput label="equipment" values={[...options.equipment, ...custom.equipment]} selected={profile.equipment} note={notes.equipment ?? ""} onNote={note("equipment")} onAdd={(value) => addCustom("equipment", value)} onSelect={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
+    {step === 2 && <section className="onboarding-section"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} custom={custom.equipment} onRemove={(value) => { dropCustom("equipment", value); note("equipment")(`${value} removed.`); setProfile({ ...profile, equipment: profile.equipment.filter((item) => item !== value) }); }} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /><OtherInput kind="equipment" label="equipment" values={[...options.equipment, ...custom.equipment]} selected={profile.equipment} note={notes.equipment ?? ""} onNote={note("equipment")} onAdd={(value) => addCustom("equipment", value)} onSelect={(value) => setProfile({ ...profile, equipment: profile.equipment.includes(value) ? profile.equipment : [...profile.equipment, value] })} /></section>}
     {step === 3 && <section className="onboarding-section">
       <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
-      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" className="text-input" style={{ flex: 1, minWidth: 0 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn secondary" type="button" disabled={!newItem.trim()} onClick={addPantry}>Add</button></div>
+      <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" className="text-input" autoComplete="off" maxLength={60} style={{ flex: 1, minWidth: 0 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn secondary" type="button" disabled={!newItem.trim()} onClick={addPantry}>Add</button></div>
       <span className="muted" role="status" style={{ display: "block", fontSize: 14, minHeight: 20, marginTop: 6 }}>{notes.pantry ?? ""}</span>
       <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{pantry.map((item, index) => {
         const kind = item.kind ?? guessPantryKind(item.name);
@@ -259,20 +309,23 @@ export function OnboardingForm() {
         <p className="muted" style={{ margin: 0, fontWeight: 400, fontSize: 15 }}>We use this to pick stores within your distance. Only an area (about 100 m) is saved.</p>
         <button type="button" className="btn secondary" disabled={locating} onClick={setFromCurrentLocation}><LocateFixed aria-hidden="true" />{locating ? "Finding you…" : "Use my location"}</button>
         <div style={{ display: "flex", gap: 8 }}>
-          <input className="text-input" style={{ flex: 1, minWidth: 0 }} aria-label="Postal code" placeholder="or postal code, e.g. V6T 1Z4" maxLength={7} value={postal}
+          <input className="text-input" style={{ flex: 1, minWidth: 0 }} aria-label="Postal code" placeholder="or postal code, e.g. V6T 1Z4" maxLength={7} autoComplete="postal-code" value={postal}
             onChange={(event) => setPostal(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void setFromPostal(); } }} />
           <button type="button" className="btn secondary" disabled={locating || !postal.trim()} onClick={() => void setFromPostal()}>Set</button>
         </div>
-        <span className="muted" role="status" style={{ fontWeight: 400, fontSize: 14, minHeight: 20 }}>{placeNote || (profile.home ? "Shopping area saved." : "No shopping area yet: plans use stores near UBC.")}</span>
+        <span role="status" style={{ fontWeight: placeError ? 700 : 400, fontSize: 14, minHeight: 20, color: placeError ? "var(--danger)" : "var(--muted)" }}>{placeNote || (profile.home ? "Shopping area saved (shown below)." : "No shopping area yet: plans use stores near UBC.")}</span>
+        {profile.home && <div className="area-map"><SupportMap points={[{ id: "home", label: "•", name: "Your shopping area", lat: profile.home.lat, lng: profile.home.lng }]} onSelect={() => undefined} /></div>}
         {profile.home && <button type="button" className="btn text" style={{ justifySelf: "start" }} onClick={() => { setProfile({ ...profile, home: null }); setPlaceNote("Shopping area cleared."); }}>Clear shopping area</button>}
       </div>
       <RangeField id="max-distance" label="Shopping distance" value={profile.maxDistanceKm} min={0.5} max={15} step={0.5} format={(value) => `${value} km`} onChange={(maxDistanceKm) => setProfile({ ...profile, maxDistanceKm })} />
-      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
+      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput kind="goal" label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
     </section>}
     {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
     <footer style={{ display: "flex", gap: 10, marginTop: 26 }}>
-      {step > 0 && <button type="button" className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>← Previous</button>}
-      <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>
+      {step > 0 && !editingOne && <button type="button" className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>← Previous</button>}
+      {editingOne
+        ? <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => void finish()}>{saving ? "Saving…" : "Save changes"}</button>
+        : <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>}
     </footer>
   </main>;
 }
