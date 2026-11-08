@@ -43,8 +43,15 @@ cloud integration should load trusted current profile and pantry server-side.
 Returns the unmodified `PlanResponse` shape plus additive `meta` (defined in
 `src/contracts/planning-api.ts`) with generation
 mode, sample-data label, stores, products, warnings and missing-nutrition names
-indexed by option ID. Invalid JSON/fields return 400; unavailable catalog or
-configuration 503; provider failure 502; no feasible complete plan 422.
+indexed by option ID. All failures use the shared `ApiError` shape through
+`apiError()` or `validationError()` from `src/lib/api-error.ts`. Invalid JSON
+or fields return `VALIDATION_FAILED` (400), with dotted field messages for
+schema errors. Missing sign-in returns `UNAUTHORIZED` (401); identity service
+or missing Gemini configuration returns `SERVICE_UNAVAILABLE` (503); provider
+failures return `UPSTREAM_FAILED` (502); no feasible complete plan returns
+`UNPROCESSABLE` (422); catalog/database failures return `DATABASE_UNAVAILABLE`
+(503). The form uses `readApiError()` and displays its `error`, including a
+readable fallback if an intermediary returns an empty or non-JSON error body.
 
 Set server-only `GEMINI_API_KEY` to enable structured Gemini generation.
 `GEMINI_PLAN_MODELS` defaults to `gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash`.
@@ -104,8 +111,13 @@ labels/certification; richer product metadata is a later catalog improvement.
 - Every requested slot must be covered. Additional slots and duplicate slots
   within a recipe are rejected. Multiple dishes can share a slot.
 - Validate source IDs, finite positive quantities and total pantry availability.
-  A's legacy unknown quantity of zero stays unavailable until corrected; do not
-  assume unlimited rice. Optional quantities in v2 can represent owned staples.
+  At the onboarding boundary, `adaptPantry()` converts non-positive legacy
+  quantities to an omitted `qtyG`: these represent owned food with unknown
+  amounts. Gemini is told that unknown amounts are available in normal
+  household quantities and to prefer matching pantry ingredients over buying
+  products. Positive quantities remain limits across the entire scaled plan.
+  An explicit zero sent directly using the shared v2 contract remains zero;
+  only the legacy onboarding boundary applies this normalization.
 - Recipe cost uses package price / package grams, ignoring stale extracted unit
   prices. Pantry costs zero. Sum gram requirements across dishes before rounding
   package counts up. Shopping totals are compared to the whole-plan budget.
