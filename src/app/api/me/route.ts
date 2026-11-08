@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertDatabaseConfigured, db } from "@/lib/db";
 import { getIdentity } from "@/lib/session";
 import { fromProfileRow } from "@/lib/profile-mapper";
+import { apiError, validationError } from "@/lib/api-error";
+import { dietaryFieldErrors } from "@/lib/profile-validation";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,8 @@ const profileSchema = z.object({
   lang: z.enum(["en", "zh"]),
   units: z.object({
     lang: z.enum(["en", "zh"]),
-    weight: z.enum(["g", "kg", "lb", "jin"]),
-    volume: z.enum(["ml", "l", "cup"]),
+    weight: z.enum(["g", "kg", "lb", "oz", "jin"]),
+    volume: z.enum(["ml", "l", "cup", "fl_oz"]),
   }),
   dietary: z.array(z.string().max(80)).max(20),
   allergies: z.array(z.string().max(80)).max(20),
@@ -23,35 +24,50 @@ const profileSchema = z.object({
   maxDistanceKm: z.number().min(0.5).max(50),
   nutritionGoal: z.string().max(300),
   onboardingComplete: z.boolean(),
+}).superRefine((profile, context) => {
+  for (const [field, message] of Object.entries(dietaryFieldErrors(profile))) {
+    context.addIssue({ code: "custom", path: [field], message });
+  }
 });
+
+function isConstraintError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error &&
+    typeof error.code === "string" && error.code.startsWith("23");
+}
 
 export async function GET() {
   const identity = await getIdentity();
-  if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!identity?.sub) return apiError("UNAUTHORIZED", "Please log in to view your profile.");
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
-    return NextResponse.json({ profile: null, mode: "demo" });
+    return Response.json({ profile: null, mode: "demo" });
   }
   try {
     assertDatabaseConfigured();
     const result = await db.query("select * from users where auth0_id = $1 limit 1", [identity.sub]);
-    return NextResponse.json({
+    return Response.json({
       profile: result.rows[0] ? fromProfileRow(result.rows[0]) : null,
       mode: "database",
     });
   } catch (error) {
     console.error("GET /api/me failed", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+    return apiError("DATABASE_UNAVAILABLE", "Your profile is unavailable right now. Please try again later.");
   }
 }
 
 export async function PUT(request: Request) {
   const identity = await getIdentity();
-  if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const parsed = profileSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!identity?.sub) return apiError("UNAUTHORIZED", "Please log in to save your profile.");
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return apiError("VALIDATION_FAILED", "The profile request is not valid.");
+  }
+  const parsed = profileSchema.safeParse(body);
+  if (!parsed.success) return validationError(parsed.error);
   const profile = parsed.data;
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
-    return NextResponse.json({ profile, mode: "demo" });
+    return Response.json({ profile, mode: "demo" });
   }
   try {
     assertDatabaseConfigured();
@@ -92,9 +108,12 @@ export async function PUT(request: Request) {
         profile.onboardingComplete,
       ],
     );
-    return NextResponse.json({ profile: fromProfileRow(result.rows[0]), mode: "database" });
+    return Response.json({ profile: fromProfileRow(result.rows[0]), mode: "database" });
   } catch (error) {
     console.error("PUT /api/me failed", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+    if (isConstraintError(error)) {
+      return apiError("CONFLICT", "This profile conflicts with existing account data. Please reload and try again.");
+    }
+    return apiError("DATABASE_UNAVAILABLE", "Your profile could not be saved because the database is unavailable.");
   }
 }
