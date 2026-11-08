@@ -175,7 +175,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .fab:hover { background: var(--green-hover); }
 .fab:active { transform: scale(.95); }
 
-/* Price-tag photo guidance */
+/* Illustrations: a soft tile holds the space until the image arrives (width/height keep the ratio). */
+.price-tag-photo-guide, .kitchen-setup-guide { background: var(--mint-soft); }
 .price-tag-photo-guide { display: block; width: 100%; height: auto; margin-top: 18px; border-radius: 16px; }
 .kitchen-setup-guide { display: block; width: 100%; height: auto; margin-top: 18px; border-radius: 16px; }
 

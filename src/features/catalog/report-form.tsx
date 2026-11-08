@@ -202,10 +202,11 @@ export function ReportForm() {
 
       <Image
         className="price-tag-photo-guide"
-        src="/images/price-tag-photo-guide.png"
+        src="/images/price-tag-photo-guide.webp"
         alt="Photo guide: keep the whole price tag clear and straight, and avoid blurry or cropped tags."
         width={814}
         height={452}
+        sizes="(max-width: 440px) calc(100vw - 40px), 400px"
         priority
       />
 
