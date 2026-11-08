@@ -2,32 +2,52 @@ import { NextResponse } from "next/server";
 import { getIdentity } from "@/lib/session";
 import { planInputSchema } from "@/features/planning/schema";
 import { generatePlan, PlanningError } from "@/features/planning/service";
+import { apiError, validationError } from "@/lib/api-error";
+import type { ApiErrorCode } from "@/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+function planningErrorCode(status: number): ApiErrorCode {
+  switch (status) {
+    case 422:
+      return "UNPROCESSABLE";
+    case 502:
+      return "UPSTREAM_FAILED";
+    case 503:
+      return "SERVICE_UNAVAILABLE";
+    default:
+      return "INTERNAL";
+  }
+}
+
 export async function POST(request: Request) {
-  const identity = await getIdentity();
+  let identity;
+  try {
+    identity = await getIdentity();
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", "Sign-in is unavailable right now. Please try again later.");
+  }
   if (!identity?.sub) {
-    return NextResponse.json({ error: "Please sign in before planning." }, { status: 401 });
+    return apiError("UNAUTHORIZED", "Please sign in before planning.");
   }
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Send a valid JSON planning request." }, { status: 400 });
+    return apiError("VALIDATION_FAILED", "Send a valid JSON planning request.");
   }
   const parsed = planInputSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Check your meal details and kitchen profile.", issues: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error, "Check your meal details and kitchen profile.");
   }
   try {
     return NextResponse.json(await generatePlan(parsed.data), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof PlanningError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return apiError(planningErrorCode(error.status), error.message);
     }
     console.error("Planning failed:", error instanceof Error ? error.name : "Unknown error");
-    return NextResponse.json({ error: "The product catalog is unavailable. Please try again later." }, { status: 503 });
+    return apiError("DATABASE_UNAVAILABLE", "The product catalog is unavailable. Please try again later.");
   }
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { demoStore } from "@/lib/demo-store";
 import { mealPlanStore } from "@/lib/meal-plan-store";
+import { readApiError } from "@/lib/api-error";
 import type { MeatVeg, PlanRequest } from "@/types";
 import type { PlanningResponse } from "@/contracts/planning-api";
 import { adaptPantry, adaptProfile } from "./adapter";
@@ -61,10 +62,10 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
         method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(60000),
         body: JSON.stringify({ request, profile, pantry: adaptPantry(kitchen.pantry, profile.id) }),
       });
-      const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error ?? "Could not create a plan. Please try again.");
+        throw new Error((await readApiError(response)).error);
       }
+      const result = await response.json();
       mealPlanStore.setOptions({ request, response: result as PlanningResponse, units: profile.units });
       router.push("/cook/options");
     } catch (cause) {

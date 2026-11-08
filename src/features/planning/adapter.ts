@@ -27,8 +27,8 @@ export function adaptPantry(items: LegacyPantry[], userId: string): PantryItem[]
   return items.map((item, index) => ({
     id: item.id ?? `pantry-${index}`, userId, name: item.name,
     foodId: item.foodId ?? undefined,
-    // A's first scaffold encodes an unknown amount as zero. Do not claim it is unlimited.
-    qtyG: item.qtyG,
+    // Onboarding uses non-positive values for owned ingredients with unknown amounts.
+    qtyG: item.qtyG > 0 ? item.qtyG : undefined,
     updatedAt: item.updatedAt ?? new Date().toISOString(),
   }));
 }

@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { calculateOption } from "../src/features/planning/calculate";
 import { filterProducts, blockedByProfile } from "../src/features/planning/filter";
-import { adaptProfile } from "../src/features/planning/adapter";
+import { adaptPantry, adaptProfile } from "../src/features/planning/adapter";
 import { draftOptionSchema, planRequestSchema } from "../src/features/planning/schema";
 import { getMealSlots } from "../src/features/planning/slots";
 import { generatePlan } from "../src/features/planning/service";
 import type { PlanningInput } from "../src/features/planning/schema";
 import { defaultProfile } from "../src/contracts/profile";
 import type { DraftOption } from "../src/features/planning/schema";
-import type { DealCheck, Food, PantryItem, PlanRequest, Product, Store } from "../src/types";
+import type { ApiError, ApiErrorCode, DealCheck, Food, PantryItem, PlanRequest, Product, Store } from "../src/types";
 import { parseProductDeal, preferRealDeals, dealLabel } from "../src/features/planning/deals";
 import { loadProductDeals } from "../src/features/planning/deal-client";
 import { loadCatalog, type Catalog } from "../src/features/planning/catalog";
@@ -18,6 +18,10 @@ import { isExpired } from "../src/features/catalog/index";
 import { tmpdir } from "node:os";
 import { generateWithGemini, planningModels, PlanningModelError } from "../src/features/planning/gemini";
 import { comparePlanOptions, storeCount } from "../src/features/planning/rank-options";
+import { POST as postPlan } from "../src/app/api/plan/route";
+import * as session from "../src/lib/session";
+import * as planningService from "../src/features/planning/service";
+import { readApiError } from "../src/lib/api-error";
 
 const request: PlanRequest = { budget: 10, servings: 2, duration: "one_meal", batchCook: false, cuisines: [], meatVeg: "balanced" };
 const product: Product = { id: "rice", storeId: "near", name: "Rice", packageSizeG: 500, packagePrice: 2.5, packageUnit: "g", pricePer100: 999, isSale: true, source: "flyer", confidence: 1, reportedAt: "2026-11-07" };
@@ -104,6 +108,27 @@ test("pantry is free but finite stock is enforced across recipes", () => {
   assert.equal(result.recipeCost, 0);
   assert.equal(result.withinBudget, true);
   plan.recipes.push(structuredClone(plan.recipes[0]));
+  assert.throws(() => calculateOption(plan, request, [], [pantry], [], "p"), /Not enough pantry/);
+});
+
+test("adapts non-positive onboarding quantities to unknown amounts and preserves finite stock", () => {
+  const items = adaptPantry([
+    { id: "rice", name: "Rice", qtyG: 0 },
+    { id: "soy-sauce", name: "Soy sauce", qtyG: -1 },
+    { id: "lentils", name: "Cooked lentils", qtyG: 150 },
+  ], "student");
+  assert.deepEqual(items.map((item) => item.qtyG), [undefined, undefined, 150]);
+  assert.ok(items.every((item) => item.userId === "student"));
+  assert.equal(JSON.stringify(items).includes('"qtyG":0'), false);
+  const plan = draft(100);
+  plan.recipes[0].ingredients = [{ productId: null, pantryItemId: "lentils", name: "Lentils", qtyG: 100 }];
+  assert.throws(() => calculateOption(plan, request, [], items, [], "p"), /Not enough pantry/);
+});
+
+test("an explicit zero in the shared pantry contract still means no finite stock", () => {
+  const pantry: PantryItem = { id: "empty", userId: "student", name: "Rice", qtyG: 0, updatedAt: "2026-11-07" };
+  const plan = draft(1);
+  plan.recipes[0].ingredients = [{ productId: null, pantryItemId: pantry.id, name: "Rice", qtyG: 1 }];
   assert.throws(() => calculateOption(plan, request, [], [pantry], [], "p"), /Not enough pantry/);
 });
 
@@ -202,6 +227,142 @@ function geminiResponse(options: DraftOption[]): Response {
 }
 
 const input: PlanningInput = { request, profile: adaptProfile(defaultProfile), pantry: [] };
+
+async function withPlanRoute(
+  run: () => Promise<void>,
+  generate: typeof planningService.generatePlan = async () => { throw new Error("Unexpected plan generation."); },
+  identity: typeof session.getIdentity = async () => ({ sub: "planning-test", name: "Test", email: "test@example.com" }),
+) {
+  const identityMock = mock.method(session, "getIdentity", identity);
+  const planMock = mock.method(planningService, "generatePlan", generate);
+  try {
+    await run();
+  } finally {
+    planMock.mock.restore();
+    identityMock.mock.restore();
+  }
+}
+
+function planHttpRequest(value: unknown = input): Request {
+  return new Request("http://localhost/api/plan", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(value),
+  });
+}
+
+async function assertPlanApiError(response: Response, status: number, code: ApiErrorCode): Promise<ApiError> {
+  const displayed = await readApiError(response.clone());
+  const body = await response.json() as ApiError;
+  assert.equal(response.status, status);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(body.code, code);
+  assert.equal(typeof body.error, "string");
+  assert.ok(body.error.length > 0);
+  assert.deepEqual(displayed, body);
+  assert.ok(Object.keys(body).every((key) => ["error", "code", "fields"].includes(key)));
+  return body;
+}
+
+test("onboarding rice with qtyG zero reaches Gemini as available pantry and costs $0 without buying rice", async () => {
+  const pantryInput: PlanningInput = {
+    ...input,
+    request: { ...request, budget: 0 },
+    pantry: adaptPantry([
+      { id: "owned-rice", name: "Rice", qtyG: 0 },
+      { id: "owned-soy", name: "Soy sauce", qtyG: 0 },
+    ], input.profile.id),
+  };
+  const realGeneratePlan = planningService.generatePlan;
+  await withGeminiMock(async () => {
+    await withPlanRoute(async () => {
+      const response = await postPlan(planHttpRequest(pantryInput));
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      const result = await response.json();
+      assert.equal(result.options.length, 2);
+      for (const option of result.options) {
+        assert.equal(option.shoppingCost, 0);
+        assert.equal(option.recipeCost, 0);
+        assert.equal(option.costPerServing, 0);
+        assert.equal(option.withinBudget, true);
+        assert.deepEqual(option.shoppingList, []);
+        assert.equal(option.recipes[0].ingredients[0].pantryItemId, "owned-rice");
+        assert.equal(option.recipes[0].ingredients[0].productId, undefined);
+      }
+    }, (data) => realGeneratePlan(data, fixtureCatalog));
+  }, (_call, init) => {
+    const prompt: string = JSON.parse(String(init?.body)).contents[0].parts[0].text;
+    const data = JSON.parse(prompt.split("\n").find((line) => line.startsWith('{"request":'))!);
+    assert.deepEqual(data.pantry.map((item: PantryItem) => item.id), ["owned-rice", "owned-soy"]);
+    assert.ok(data.pantry.every((item: PantryItem) => !("qtyG" in item)));
+    assert.match(prompt, /without qtyG are available in normal household amounts/);
+    assert.match(prompt, /Prefer pantry items over buying a product for the same ingredient/);
+    assert.match(prompt, /Finite pantry quantities are limits for the ENTIRE scaled plan/);
+    const options = [100, 120].map((grams) => {
+      const option = modelDraft(grams);
+      option.recipes[0].ingredients = [
+        { productId: null, pantryItemId: "owned-rice", name: "Rice", qtyG: grams },
+        { productId: null, pantryItemId: "owned-soy", name: "Soy sauce", qtyG: 5 },
+      ];
+      return option;
+    });
+    return geminiResponse(options);
+  });
+});
+
+test("plan route returns a shared unauthorized error before parsing or generating", async () => {
+  await withPlanRoute(async () => {
+    await assertPlanApiError(await postPlan(planHttpRequest(null)), 401, "UNAUTHORIZED");
+  }, undefined, async () => null);
+});
+
+test("plan route uses a shared service error if identity lookup is unavailable", async () => {
+  await withPlanRoute(async () => {
+    const body = await assertPlanApiError(await postPlan(planHttpRequest()), 503, "SERVICE_UNAVAILABLE");
+    assert.doesNotMatch(body.error, /private identity diagnostic/);
+  }, undefined, async () => { throw new Error("private identity diagnostic"); });
+});
+
+test("plan route returns a shared validation error for malformed JSON", async () => {
+  await withPlanRoute(async () => {
+    const response = await postPlan(new Request("http://localhost/api/plan", { method: "POST", body: "{broken" }));
+    await assertPlanApiError(response, 400, "VALIDATION_FAILED");
+  });
+});
+
+test("plan route returns dotted field errors instead of a Zod flatten object", async () => {
+  await withPlanRoute(async () => {
+    const response = await postPlan(planHttpRequest({ ...input, request: { ...request, servings: 0 } }));
+    const body = await assertPlanApiError(response, 400, "VALIDATION_FAILED");
+    assert.equal(typeof body.fields?.["request.servings"], "string");
+  });
+});
+
+for (const [status, code, message] of [
+  [422, "UNPROCESSABLE", "No complete plan fits these constraints."],
+  [502, "UPSTREAM_FAILED", "The recipe service is unavailable right now."],
+  [503, "SERVICE_UNAVAILABLE", "Configure GEMINI_API_KEY to generate meal plans."],
+  [500, "INTERNAL", "Planning could not be completed."],
+] as const) {
+  test(`plan route maps planning status ${status} to ${code}`, async () => {
+    await withPlanRoute(async () => {
+      const body = await assertPlanApiError(await postPlan(planHttpRequest()), status, code);
+      assert.equal(body.error, message);
+    }, async () => { throw new planningService.PlanningError(message, status); });
+  });
+}
+
+test("plan route returns a shared database error without leaking catalog diagnostics", async () => {
+  const log = mock.method(console, "error", () => {});
+  try {
+    await withPlanRoute(async () => {
+      const body = await assertPlanApiError(await postPlan(planHttpRequest()), 503, "DATABASE_UNAVAILABLE");
+      assert.doesNotMatch(body.error, /private database diagnostic/);
+      assert.deepEqual(log.mock.calls[0].arguments, ["Planning failed:", "Error"]);
+    }, async () => { throw new Error("private database diagnostic"); });
+  } finally {
+    log.mock.restore();
+  }
+});
 
 test("Gemini request uses structured JSON and code ignores invented prices", async () => {
   await withGeminiMock(async () => {
