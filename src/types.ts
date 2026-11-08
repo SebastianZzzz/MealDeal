@@ -1,4 +1,5 @@
 // MealDeal shared types — the contract between A, B, C and D.
+// Single source of truth: import from "@/types". Changes go to main as their own small PR.
 // Rule: everything is stored in grams (or ml / pieces). Display units are converted by code, never by Gemini.
 
 // ---------- Units & language (A) ----------
@@ -44,7 +45,7 @@ export type Equipment =
 export type MeatVeg = "mostly_meat" | "balanced" | "mostly_veg" | "vegetarian";
 
 export interface UserProfile {
-  id: string; // Supabase Auth user id
+  id: string; // Auth0 user id (`sub`)
   displayName: string;
   units: UnitPrefs;
   dietary: string[]; // e.g. ["halal", "no_pork"]
@@ -91,7 +92,6 @@ export interface Product {
   isSale: boolean;
   validUntil?: string; // ISO date
   source: "flyer" | "report";
-  imageUrl?: string;
   confidence: number; // 0–1, from extraction
   reportedBy?: string;
   reportedAt: string; // ISO
@@ -114,6 +114,34 @@ export interface PriceTagResult {
   items: ExtractedPrice[];
   nearbyStores: Store[]; // sorted by distance; first one pre-selected
   date: string; // today by default, ISO
+}
+
+// ---------- Price history (B) ----------
+// One row per flyer import or confirmed report, stored in the `price_observations` TimescaleDB hypertable.
+// "sample" rows are seeded demo history and must be labeled in the UI.
+
+export interface PriceObservation {
+  productId: string; // stable across weeks: derived from store + normalized name/size
+  storeId: string;
+  pricePer100: number; // computed by code
+  packagePrice: number;
+  isSale: boolean;
+  source: "flyer" | "report" | "sample";
+  observedAt: string; // ISO
+}
+
+export type DealVerdict = "real_deal" | "normal" | "pricier" | "not_enough_data";
+
+// GET /api/products/:id/deal — current price vs the 28-day median at the same store. Computed by code, never by Gemini.
+export interface DealCheck {
+  productId: string;
+  storeId: string;
+  currentPer100: number;
+  medianPer100?: number; // median of earlier observations in the last 28 days (excludes the current one)
+  diffPct?: number; // (current - median) / median * 100
+  observations: number; // earlier observations used for the median
+  hasSampleData: boolean; // true if any sample rows were used — show a label
+  verdict: DealVerdict; // <= -10%: real_deal, >= +10%: pricier, otherwise normal; < 3 observations: not_enough_data
 }
 
 // ---------- Nutrition ----------
