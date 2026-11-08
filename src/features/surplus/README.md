@@ -29,11 +29,19 @@ inventory across devices or users. Browsers without Web Locks can browse but
 cannot post or reserve. Web Locks need a secure context (HTTPS or localhost).
 Reference: https://www.w3.org/TR/web-locks/
 
-A will later supply Tiger Data through `src/lib/db.ts`. The database reservation
-must condition its single update on `qty_left > 0` and an unexpired pickup
-window, returning the updated row. Returning no row means the reservation failed.
-Do not replace this with an application-level read followed by a separate update.
-The local demo guarantee does not stand in for that database operation.
+## Shared service preview
+
+`/eat-out/shared` and `/eat-out/shared/post` call `GET/POST /api/surplus`
+and `POST /api/surplus/[id]/reserve`. Writes require Auth0. Server-generated IDs
+and Auth0 ownership replace client claims; new listings remain labeled samples.
+The repository uses one parameterized conditional update with `qty_left > 0`
+and an unexpired pickup window. Returning no row means 409, not success.
+
+A will later supply Tiger Data through `src/lib/db.ts`. D's resolver currently
+returns null, so the shared service returns 503 until connected; it never
+silently writes local inventory instead. The proposed `sql/d-surplus.sql`
+migration has not been applied. See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md).
+The local demo guarantee and query tests do not prove database concurrency.
 
 ## Validation and checks
 
@@ -47,4 +55,7 @@ Run `inventory.test.mjs` with Node's TypeScript stripping, alongside the cooking
 tests. Tests include 30 simultaneous reservations against one remaining portion,
 expired offers, corrupted storage, failed writes, and invalid form values.
 Manual checks: post, browse, reserve, refresh, two-tab final-portion race,
-location denied, expired pickup, sold-out stock, and storage denied.
+location denied, expired pickup, sold-out stock, and storage denied. API tests
+also cover sign-in, validation, disconnected storage, server ownership and
+conditional-update conflicts. Use [the acceptance checklist](../../../docs/D-ACCEPTANCE.md)
+for the two-client database test after A connects the adapter.

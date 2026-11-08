@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SurplusListing } from "@/types";
-import { makeBrowserInventory, notifySurplusChanged, SURPLUS_CHANGED } from "./browser-store";
+import { notifySurplusChanged, SURPLUS_CHANGED } from "./browser-store";
+import { makeSurplusClient, type InventorySource } from "./client";
 import { distanceKm, SURPLUS_KEY } from "./inventory";
 import styles from "../community.module.css";
 
 const money = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
 const pickup = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Vancouver", timeZoneName: "short" }).format(new Date(value));
 
-export function SurplusView() {
+export function SurplusView({ source = "local" }: { source?: InventorySource }) {
   const [items, setItems] = useState<SurplusListing[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -24,8 +25,7 @@ export function SurplusView() {
     let active = true;
     const load = async () => {
       try {
-        const inventory = makeBrowserInventory();
-        const next = navigator.locks ? await inventory.initialize() : inventory.read();
+        const next = await makeSurplusClient(source).list();
         if (active) { setItems(next); setReady(true); setNow(Date.now()); }
       } catch (cause) { if (active) { setError(cause instanceof Error ? cause.message : "Listings could not be loaded."); setReady(true); } }
     };
@@ -36,17 +36,20 @@ export function SurplusView() {
     window.addEventListener("storage", storage);
     window.addEventListener(SURPLUS_CHANGED, refresh);
     return () => { active = false; window.clearInterval(tick); window.removeEventListener("storage", storage); window.removeEventListener(SURPLUS_CHANGED, refresh); };
-  }, []);
+  }, [source]);
 
   async function reserve(item: SurplusListing) {
     setBusy(item.id); setError(""); setMessage("");
     try {
-      const inventory = makeBrowserInventory();
+      const inventory = makeSurplusClient(source);
       const result = await inventory.reserve(item.id, Date.now);
-      setItems(inventory.read());
-      if (result.ok) setMessage(`Demo reservation recorded for ${item.title}. ${result.listing.qtyLeft} left. This is a simulation; no real food has been held.`);
+      // Report a confirmed reservation even if refreshing the list later fails.
+      if (result.ok) {
+        setItems((current) => current.map((entry) => entry.id === item.id ? result.listing : entry));
+        setMessage(`${result.listing.isSample ? "Sample reservation" : "Reservation"} recorded for ${item.title}. ${result.listing.qtyLeft} left.${result.listing.isSample ? " This is a simulation; no real food has been held." : " Pay at pickup; there is no online payment."}`);
+      }
       else setError(result.reason === "sold_out" ? "The last portion was just reserved. Please choose another listing." : result.reason === "expired" ? "This pickup window has ended." : "This listing is no longer available.");
-      notifySurplusChanged();
+      if (source === "local") notifySurplusChanged();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not reserve this listing. Nothing was confirmed."); }
     finally { setBusy(null); }
   }
@@ -63,8 +66,8 @@ export function SurplusView() {
   return <main className={styles.page}>
     <nav className={styles.nav} aria-label="MealDeal navigation"><Link href="/">← MealDeal</Link><Link href="/support">Food support</Link></nav>
     <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / SURPLUS FOOD</p><h1>Good food.<br />A second chance.</h1><p>Browse end-of-day meals and save a portion for pickup.</p></header>
-    <aside className={styles.notice}><strong>Local demo — no real reservations.</strong><p>Sample merchants and any listings you post are stored only in this browser. Reservations are simulated across its tabs. There is no payment or real merchant fulfilment.</p></aside>
-    <div className={styles.toolbar}><label className={styles.field}>Sort by<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></label><button className={styles.secondary} onClick={locate}>Use my location</button><Link className={styles.primary} href="/eat-out/post">Post a sample listing</Link></div>
+    <aside className={styles.notice}><strong>{source === "local" ? "Local demo — no real reservations." : "Shared inventory preview"}</strong><p>{source === "local" ? "Sample merchants and any listings you post are stored only in this browser. Reservations are simulated across its tabs. There is no payment or real merchant fulfilment." : "Listings are read from the shared service. Entries labeled sample data do not represent real merchants or food holds. Sign in to post or reserve."}</p><Link href={source === "local" ? "/eat-out/shared" : "/eat-out"}>{source === "local" ? "Open shared inventory preview →" : "Use the local demo →"}</Link></aside>
+    <div className={styles.toolbar}><label className={styles.field}>Sort by<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></label><button className={styles.secondary} onClick={locate}>Use my location</button><Link className={styles.primary} href={source === "local" ? "/eat-out/post" : "/eat-out/shared/post"}>Post a sample listing</Link></div>
     {error && <p role="alert" className={styles.error}>{error}</p>}{message && <p role="status" className={styles.success}>{message}</p>}
     {!ready && <p role="status">Loading surplus listings…</p>}
     <div className={styles.cards}>{sorted.map((item) => {
@@ -74,7 +77,7 @@ export function SurplusView() {
         <h2>{item.title}</h2><p className={styles.address}>{item.merchantName}<br />{item.address}{origin && <><br />{distanceKm(origin, item).toFixed(1)} km away · straight-line estimate</>}</p>
         <dl><dt>Pickup window · Vancouver time</dt><dd>{pickup(item.pickupStart)} – {pickup(item.pickupEnd)}</dd><dt>Allergen information</dt><dd>{item.allergens.length ? item.allergens.join(", ") : "No allergens declared; this does not mean allergen-free."} Confirm ingredients and cross-contact with the merchant.</dd></dl>
         {item.description && <p className={styles.small}>{item.description}</p>}
-        <div className={styles.row}><div><span className={styles.price}>{money(item.price)}</span><span className={styles.original}>{money(item.origPrice)}</span></div><button className={styles.primary} disabled={expired || item.qtyLeft === 0 || busy !== null} onClick={() => void reserve(item)}>{busy === item.id ? "Reserving…" : expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : "Reserve one · demo"}</button></div>
+        <div className={styles.row}><div><span className={styles.price}>{money(item.price)}</span><span className={styles.original}>{money(item.origPrice)}</span></div><button className={styles.primary} disabled={expired || item.qtyLeft === 0 || busy !== null} onClick={() => void reserve(item)}>{busy === item.id ? "Reserving…" : expired ? "Pickup ended" : item.qtyLeft === 0 ? "Sold out" : item.isSample ? "Reserve one · sample" : "Reserve one"}</button></div>
       </article>;
     })}</div>
     {ready && items.length === 0 && !error && <section className={styles.empty}><h2>No listings yet.</h2><p>Post a sample listing to try the flow.</p></section>}

@@ -26,18 +26,25 @@ page and its entry points. Missing current plans link to planning and the demo.
 `/support` contains four curated Vancouver/UBC resources with official source
 links, verified dates, and a check-before-you-go notice. `/eat-out` and
 `/eat-out/post` provide a browser-local sample surplus posting/reservation flow.
-Web Locks serialize stock updates across cooperating tabs; shared database
-inventory will be added by A. All local merchants and reservations are examples.
+Web Locks serialize stock updates across cooperating tabs. All local merchants
+and reservations are examples. `/eat-out/shared` uses D's shared HTTP API;
+it remains unavailable until A's database adapter is connected. The resources
+API is available now at `/api/resources`. Cooking offers explicit account
+save/restore through owner-scoped progress endpoints, with local saving retained.
 
 Run the timer/progress tests with Node.js 22.18 or newer:
 
 ```bash
-node --experimental-strip-types --test src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
+node --experimental-strip-types --import ./tests/d-paths.mjs --test tests/d-api.test.mjs src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
 ```
 
 If the local environment blocks Turbopack's internal port, build with
 `npm run build -- --webpack`. See `src/features/cooking/README.md` for C/A
 integration details and manual checks. Cloud progress saving is not yet connected.
+See [D's backend handoff](docs/D-BACKEND-HANDOFF.md),
+[acceptance checklist](docs/D-ACCEPTANCE.md), [pitch draft](docs/PITCH.md), and
+[Devpost draft](docs/DEVPOST.md). The SQL proposal has not been applied; the
+manual acceptance checklist and submission drafts still require team review.
 
 ## Authentication and later persistence
 

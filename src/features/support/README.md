@@ -12,3 +12,8 @@ A prominent check-before-you-go notice explains that this is a curated list, not
 live availability. No sign-in, location permission, or image storage is needed.
 Update `resources.ts` only after checking each official source again; update its
 verified date at the same time. No real-time search is included in this version.
+
+`GET /api/resources?q=&type=` serves the same curated collection and notice,
+without sign-in or a database. Invalid category or overlong search values
+return 400. The page continues to use bundled data so it works while shared
+storage is unavailable.

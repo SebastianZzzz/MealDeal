@@ -89,6 +89,13 @@ test("server progress and completed plan state initialize correctly", () => {
   assert.deepEqual(createSession(plan).progress, { main: 3, side: 2 });
 });
 
+test("a completed shared plan cannot be reopened by an older local snapshot", () => {
+  const plan = fixture();
+  const old = JSON.stringify(createSession(plan));
+  plan.status = "done";
+  assert.deepEqual(restoreSession(plan, old).progress, { main: 3, side: 2 });
+});
+
 test("clock rounds up a partial second and never displays negative values", () => {
   assert.equal(formatTime(59999), "01:00");
   assert.equal(formatTime(1), "00:01");

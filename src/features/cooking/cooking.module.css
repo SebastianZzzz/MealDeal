@@ -93,6 +93,11 @@
 .footer > span { font-size: 9px; line-height: 1.6; }
 .backLink { display: flex; width: fit-content; align-items: center; margin: 0 auto; gap: 5px; font-size: 11px; color: #738067; text-underline-offset: 4px; }
 .featureLinks { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 24px; font-size: 12px; color: var(--green); text-underline-offset: 4px; }
+.cloudSync { border-top: 1px solid #dce1d5; margin-top: 28px; padding-top: 20px; }
+.cloudSync h2 { font-family: Georgia, serif; font-weight: 400; font-size: 25px; margin: 0 0 8px; }
+.cloudSync p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.cloudSync > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.cloudSync button { min-height: 44px; padding: 10px 13px; border: 1px solid #cad5c0; background: #eef3e5; border-radius: 8px; color: var(--ink); font-size: 12px; }
 @media (min-width: 600px) { .page { padding: 35px 40px 50px; } .intro { padding-top: 42px; } .recipeHeader { padding: 23px; } .recipeBody { padding: 0 25px; } }
 @media (max-width: 360px) { .page { padding: 22px 15px 36px; } .recipeHeader { gap: 10px; padding: 15px; } .recipeArt { width: 48px; height: 62px; font-size: 28px; } .recipeHeading h3 { font-size: 22px; } .stepDetail { padding-left: 0; } .recipeBody { padding: 0 15px; } .stage { font-size: 8px; letter-spacing: .8px; } }
 @media (prefers-reduced-motion: reduce) { .page * { transition: none; scroll-behavior: auto; } }

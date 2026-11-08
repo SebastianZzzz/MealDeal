@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
 import { GRAMS_PER, type MealPlan, type UnitPrefs, type WeightUnit } from "@/types";
 import { createSession, formatTime, remainingMs, restoreSession, timerKey, updateSession, type CookingAction, type CookingSession } from "./session";
-import { saveCurrentProgress } from "./plan-storage";
+import { canCook, saveCurrentProgress } from "./plan-storage";
+import { syncCookingPlan } from "./cloud-client";
 import styles from "./cooking.module.css";
 
 type ViewState = { session: CookingSession; ready: boolean; warning: string; units: UnitPrefs; now: number };
@@ -55,6 +56,8 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
   const [openRecipes, setOpenRecipes] = useState<Record<string, boolean>>({});
   const [openSteps, setOpenSteps] = useState<Record<string, number>>({});
   const [resetRecipe, setResetRecipe] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudMessage, setCloudMessage] = useState("");
   const storageKey = `mealdeal.cooking.v1:${plan.userId}:${plan.id}`;
 
   useEffect(() => {
@@ -98,6 +101,25 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
   function completeStep(recipeId: string, index: number) {
     dispatch({ type: "complete", recipeId, index });
     setOpenSteps((current) => ({ ...current, [recipeId]: index + 1 }));
+  }
+
+  async function syncAccount(restore: boolean) {
+    setCloudBusy(true); setCloudMessage("");
+    try {
+      const remote = await syncCookingPlan(plan.id, restore ? undefined : view.session.progress);
+      if (remote.userId !== plan.userId || JSON.stringify(remote.chosen.recipes) !== JSON.stringify(plan.chosen.recipes) || !canCook(remote)) {
+        throw new Error("The saved account plan differs from this recipe. Reopen it from your shopping list.");
+      }
+      if (restore) {
+        const next = saveCurrentProgress(localStorage, plan, remote.progress);
+        const session = createSession(next);
+        localStorage.setItem(storageKey, JSON.stringify(session));
+        dispatch({ type: "hydrate", session, warning: "", units, now });
+        setOpenSteps({});
+      }
+      setCloudMessage(restore ? "Account progress restored. Old local timers have been cleared." : "Cooking progress saved to your account.");
+    } catch (cause) { setCloudMessage(cause instanceof Error ? cause.message : "Account sync is unavailable. Your local progress is still saved."); }
+    finally { setCloudBusy(false); }
   }
 
   if (!view.ready) return <main className={styles.page}><p className={styles.eyebrow}>MEALDEAL / YOUR KITCHEN</p><h1>Getting your kitchen ready…</h1></main>;
@@ -195,6 +217,7 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
     {recipes.length === 0 && <section className={styles.empty}><h2>No recipes here yet.</h2><p>Choose a meal plan before entering cooking mode.</p><Link href="/cook">Back to Cook at Home</Link></section>}
     {allDone && <section className={styles.celebration} role="status"><span className={styles.finishMark}><Icon name="check" size={28} /></span><h2>Good food. Your own two hands.</h2><p>All {recipes.length} recipes are complete. Your progress is saved here.</p><Link href="/" className={styles.homeButton}>Back to MealDeal <span>→</span></Link></section>}
 
+    {!isDemo && <section className={styles.cloudSync} aria-label="Account progress"><h2>Keep your place.</h2><p>Progress saves on this browser automatically. Account sync is available when your plan has been connected to shared storage.</p><div><button disabled={cloudBusy} onClick={() => void syncAccount(false)}>Save to account</button><button disabled={cloudBusy} onClick={() => void syncAccount(true)}>Restore account progress</button></div>{cloudMessage && <p role="status">{cloudMessage}</p>}</section>}
     <footer className={styles.footer}><Icon name="leaf" size={17} /><p>A little less stress. A little more homemade.</p><span>Timers are reminders. Check your food as you cook.</span></footer>
     <Link className={styles.backLink} href={isDemo ? "/cook/cooking" : "/cook/shopping"}><Icon name="arrow" size={16} />{isDemo ? "Open your meal plan" : "Back to shopping list"}</Link>
     <nav className={styles.featureLinks} aria-label="More ways to eat"><Link href={isDemo ? "/cook/plan" : "/cook/demo"}>{isDemo ? "Plan a meal" : "Try a sample recipe"}</Link><Link href="/support">Food support</Link><Link href="/eat-out">Eat out</Link></nav>

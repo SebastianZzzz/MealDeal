@@ -44,6 +44,7 @@ export function remainingMs(timer: StepTimer, now: number): number {
 /** Treat browser storage as untrusted; a changed recipe starts a fresh session. */
 export function restoreSession(plan: MealPlan, raw: string | null): CookingSession {
   const fresh = createSession(plan);
+  if (plan.status === "done") return fresh;
   if (!raw) return fresh;
   try {
     const saved = JSON.parse(raw) as CookingSession;

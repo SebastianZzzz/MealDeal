@@ -41,12 +41,18 @@ C owns navigation from `/cook/shopping` to `/cook/cooking` and writing the
 `mealdeal.currentPlan` key. The older C branch used a different key and a
 `/cook/ready` handoff; this implementation follows the superseding team update.
 A owns Auth0 and the later Tiger Data adapter at `src/lib/db.ts`. This change
-adds no database, cloud progress endpoint, image storage, or identity provider.
+adds owner-scoped `GET/PATCH /api/cooking/[id]` endpoints and explicit account
+save/restore actions. They require Auth0 and A's database adapter; they return
+401 when signed out and 503 when shared storage is disconnected. Local saving
+continues independently. D never inserts C's plans or changes their shopping
+data. See [the backend handoff](../../../docs/D-BACKEND-HANDOFF.md) for the
+expected schema and connection point. No image storage or new identity provider
+is added.
 
 ## Verification
 
 ```sh
-node --experimental-strip-types --test src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
+node --experimental-strip-types --import ./tests/d-paths.mjs --test tests/d-api.test.mjs src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
 npm run lint
 npm run build
 ```
