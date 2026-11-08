@@ -55,7 +55,7 @@ export function OptionsView() {
   return <main className="page planning-page">
     <ScreenHeader backHref="/cook/plan" />
     <p className="planning-eyebrow">COOK AT HOME / CHOOSE</p><h1>Meal options</h1>
-    <p className="muted">{getMealSlots(request).length} meals · {request.servings} people · {formatMoney(request.budget)} total budget</p>
+    <p className="muted">{plural(getMealSlots(request).length, "meal")} · {plural(request.servings, "person", "people")} · {formatMoney(request.budget)} total budget</p>
     <div className="planning-notices">{response.meta.warnings.map((warning) => <p className="planning-notice" key={warning}>{warning}</p>)}</div>
     <p className="planning-small muted">Choose your meals now. Cooking instructions come after shopping.</p>
     {error && <p role="alert" className="planning-error">{error}</p>}
