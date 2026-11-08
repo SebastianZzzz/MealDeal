@@ -16,13 +16,8 @@ export async function describeArea(lat: number, lng: number): Promise<string | n
 const USER_AGENT = "MealDeal/0.1 (HackCamp 2026)";
 const cache = new Map<string, { lat: number; lng: number } | null>();
 
-export const POSTAL_CODE = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z] ?\d[ABCEGHJ-NPRSTV-Z]\d$/i;
-
-/** "v6t1z4" -> "V6T 1Z4" */
-export function normalizePostal(code: string): string {
-  const compact = code.replace(/\s+/g, "").toUpperCase();
-  return `${compact.slice(0, 3)} ${compact.slice(3)}`;
-}
+export { POSTAL_CODE, normalizePostal } from "@/lib/postal";
+import { normalizePostal } from "@/lib/postal";
 
 // About 100 m: enough to find stores, not enough to pinpoint a home.
 export const roundCoord = (value: number) => Math.round(value * 1000) / 1000;

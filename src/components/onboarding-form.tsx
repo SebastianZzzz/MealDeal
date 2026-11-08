@@ -8,6 +8,7 @@ import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 import { RangeField } from "@/components/range-field";
+import { POSTAL_CODE, normalizePostal } from "@/lib/postal";
 import { classifyCustomChoice, formatProblem, type ChoiceKind } from "@/lib/custom-choices";
 import { SupportMap } from "@/features/support/support-map";
 import { LocateFixed, Trash2, X } from "lucide-react";
@@ -114,8 +115,8 @@ export function OnboardingForm() {
   const note = (key: string) => (text: string) => setNotes((current) => ({ ...current, [key]: text }));
   const [locating, setLocating] = useState(false);
   const [postal, setPostal] = useState("");
-  const [placeNote, setPlaceNote] = useState("");
-  const [placeError, setPlaceError] = useState(false);
+  type PlaceStatus = { tone: "info" | "success" | "error"; text: string; place?: string; after?: string };
+  const [placeStatus, setPlaceStatus] = useState<PlaceStatus | null>(null);
   // Opened from the kitchen check to change one thing: show "Save changes" on that step.
   const [editingOne, setEditingOne] = useState(false);
   const addCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].includes(value) ? current[key] : [...current[key], value] }));
@@ -202,38 +203,41 @@ export function OnboardingForm() {
   }
 
   function setFromCurrentLocation() {
-    setPlaceError(false);
-    if (!navigator.geolocation) { setPlaceError(true); setPlaceNote("This browser can't share a location. Enter a postal code instead."); return; }
+    if (!navigator.geolocation) { setPlaceStatus({ tone: "error", text: "This browser can't share a location. Enter a postal code instead." }); return; }
     setLocating(true);
-    setPlaceNote("Finding you…");
+    setPlaceStatus({ tone: "info", text: "Finding you…" });
     navigator.geolocation.getCurrentPosition(async (position) => {
       const home = { lat: Math.round(position.coords.latitude * 1000) / 1000, lng: Math.round(position.coords.longitude * 1000) / 1000 };
       setProfile((current) => ({ ...current, home }));
       const area = await describe(home.lat, home.lng);
-      setPlaceNote(area ? `Found you near ${area}. Not right? Enter a postal code.` : "Found your location (shown on the map). Not right? Enter a postal code.");
+      setPlaceStatus(area
+        ? { tone: "success", text: "Found you near ", place: area, after: ". Not right? Enter a postal code." }
+        : { tone: "success", text: "Found your location (shown on the map). Not right? Enter a postal code." });
       setLocating(false);
     }, (failure) => {
-      setPlaceError(true);
-      setPlaceNote(failure.code === failure.PERMISSION_DENIED
+      setPlaceStatus({ tone: "error", text: failure.code === failure.PERMISSION_DENIED
         ? "Location access is off for this site. Allow it (iPhone: Settings > Privacy > Location Services > Safari Websites), or enter a postal code."
-        : failure.code === failure.TIMEOUT ? "Finding your location took too long. Try again, or enter a postal code." : "Your location isn't available right now. Enter a postal code instead.");
+        : failure.code === failure.TIMEOUT ? "Finding your location took too long. Try again, or enter a postal code." : "Your location isn't available right now. Enter a postal code instead." });
       setLocating(false);
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
   }
 
   async function setFromPostal() {
     if (!postal.trim()) return;
+    // Check the format here so a typo never leaves the page.
+    if (!POSTAL_CODE.test(postal.trim())) {
+      setPlaceStatus({ tone: "error", text: "That isn't a Canadian postal code. Use the format A1A 1A1, like V6T 1Z4." });
+      return;
+    }
     setLocating(true);
     try {
       const response = await fetch(`/api/geocode?postal=${encodeURIComponent(postal.trim())}`);
       if (!response.ok) throw new Error((await readApiError(response)).error);
       const place = await response.json() as { lat: number; lng: number; postal: string; area: string | null };
       setProfile((current) => ({ ...current, home: { lat: place.lat, lng: place.lng } }));
-      setPlaceError(false);
-      setPlaceNote(`Shopping area set near ${place.postal}${place.area ? ` (${place.area})` : ""}.`);
+      setPlaceStatus({ tone: "success", text: "Shopping area set near ", place: place.area ? `${place.postal} (${place.area})` : place.postal, after: "." });
     } catch (cause) {
-      setPlaceError(true);
-      setPlaceNote(cause instanceof Error ? cause.message : "Could not find that postal code.");
+      setPlaceStatus({ tone: "error", text: cause instanceof Error ? cause.message : "Could not find that postal code." });
     } finally {
       setLocating(false);
     }
@@ -332,12 +336,14 @@ export function OnboardingForm() {
         <button type="button" className="btn secondary" disabled={locating} onClick={setFromCurrentLocation}><LocateFixed aria-hidden="true" />{locating ? "Finding you…" : "Use my location"}</button>
         <div style={{ display: "flex", gap: 8 }}>
           <input className="text-input" style={{ flex: 1, minWidth: 0 }} aria-label="Postal code" placeholder="or postal code, e.g. V6T 1Z4" maxLength={7} autoComplete="postal-code" value={postal}
-            onChange={(event) => setPostal(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void setFromPostal(); } }} />
+            onChange={(event) => setPostal(normalizePostal(event.target.value).slice(0, 7))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void setFromPostal(); } }} />
           <button type="button" className="btn secondary" disabled={locating || !postal.trim()} onClick={() => void setFromPostal()}>Set</button>
         </div>
-        <span role="status" style={{ fontWeight: placeError ? 700 : 400, fontSize: 14, minHeight: 20, color: placeError ? "var(--danger)" : "var(--muted)" }}>{placeNote || (profile.home ? "Shopping area saved (shown below)." : "No shopping area yet: plans use stores near UBC.")}</span>
+        <span role="status" className={`place-status place-${placeStatus?.tone ?? "info"}`}>{placeStatus
+          ? <>{placeStatus.text}{placeStatus.place && <strong>{placeStatus.place}</strong>}{placeStatus.after}</>
+          : profile.home ? "Shopping area saved (shown below)." : "No shopping area yet: plans use stores near UBC."}</span>
         {profile.home && <div className="area-map"><SupportMap points={[{ id: "home", label: "•", name: "Your shopping area", lat: profile.home.lat, lng: profile.home.lng }]} onSelect={() => undefined} /></div>}
-        {profile.home && <button type="button" className="btn text" style={{ justifySelf: "start" }} onClick={() => { setProfile({ ...profile, home: null }); setPlaceNote("Shopping area cleared."); }}>Clear shopping area</button>}
+        {profile.home && <button type="button" className="btn text" style={{ justifySelf: "start" }} onClick={() => { setProfile({ ...profile, home: null }); setPlaceStatus({ tone: "info", text: "Shopping area cleared." }); }}>Clear shopping area</button>}
       </div>
       <RangeField id="max-distance" label="Shopping distance" value={profile.maxDistanceKm} min={0.5} max={15} step={0.5} format={(value) => `${value} km`} onChange={(maxDistanceKm) => setProfile({ ...profile, maxDistanceKm })} />
       <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput kind="goal" label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
