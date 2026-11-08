@@ -9,6 +9,7 @@ import { formatMoney, formatWeight } from "./format";
 import { useSaved } from "./use-saved";
 import { useProductDeals } from "./use-product-deals";
 import { dealLabel } from "./deals";
+import { plural } from "@/lib/plural";
 
 export function ShoppingView() {
   const saved = useSaved(mealPlanStore.getSelected);
@@ -62,7 +63,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
     <p className="planning-eyebrow">COOK AT HOME · 3 OF 3</p><h1>One list.<br />Ready to shop.</h1>
     <p className="muted">{plan.chosen.title}</p>
     {saved?.response.meta.isSample && <p className="planning-notice">Sample stores and prices. Check current prices before purchasing.</p>}
-    <div className="card planning-section"><div className="planning-row"><span>Expected checkout</span><strong className="planning-total">{formatMoney(plan.chosen.shoppingCost)}</strong></div><p className="planning-small muted">{formatMoney(plan.request.budget)} budget · full packages included</p><label htmlFor="shopping-progress" className="planning-small">{bought} of {total} items bought</label><progress id="shopping-progress" className="planning-progress" value={bought} max={Math.max(1, total)} /></div>
+    <div className="card planning-section"><div className="planning-row"><span>Expected checkout</span><strong className="planning-total">{formatMoney(plan.chosen.shoppingCost)}</strong></div><p className="planning-small muted">{formatMoney(plan.request.budget)} budget · full packages included</p><label htmlFor="shopping-progress" className="planning-small">{bought} of {plural(total, "item")} bought</label><progress id="shopping-progress" className="planning-progress" value={bought} max={Math.max(1, total)} /></div>
     {total === 0 && <p className="planning-notice">Everything is already in your pantry. You&apos;re ready to cook.</p>}
     {storeIds.map((storeId) => {
       const store = saved?.response.meta.stores.find((item) => item.id === storeId);

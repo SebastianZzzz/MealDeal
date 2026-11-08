@@ -10,6 +10,7 @@ import { formatMealSlots, formatMoney, formatWeight } from "./format";
 import { getMealSlots } from "./slots";
 import { useSaved } from "./use-saved";
 import { storeCount } from "./rank-options";
+import { plural } from "@/lib/plural";
 
 function recommendationLabel(option: PlanOption, index: number): string {
   if (index > 0) {
@@ -54,7 +55,7 @@ export function OptionsView() {
     {response.options.map((option, index) => <article className="card planning-section" key={option.id}>
       <div className="planning-row"><span className="planning-badge">{recommendationLabel(option, index)}</span><span className="planning-small muted">{storeCount(option)} store{storeCount(option) === 1 ? "" : "s"} · {option.recipes.length} recipe{option.recipes.length === 1 ? "" : "s"}</span></div>
       <h2>{option.title}</h2>
-      <ul className="planning-recipes">{option.recipes.map((recipe) => <li key={recipe.id}><strong>{recipe.title}</strong><span className="muted planning-small">{recipe.servings} portions · about {recipe.totalMinutes} min · {formatMealSlots(recipe.mealSlots)}</span></li>)}</ul>
+      <ul className="planning-recipes">{option.recipes.map((recipe) => <li key={recipe.id}><strong>{recipe.title}</strong><span className="muted planning-small">{plural(recipe.servings, "portion")} · about {recipe.totalMinutes} min · {formatMealSlots(recipe.mealSlots)}</span></li>)}</ul>
       <div className="planning-checkout"><span>Pay at checkout</span><strong>{formatMoney(option.shoppingCost)}</strong></div>
       <div className="planning-grid planning-costs"><div><span className="muted planning-small">Food used</span><strong>{formatMoney(option.recipeCost)}</strong></div><div><span className="muted planning-small">Per person, per meal</span><strong>{formatMoney(option.costPerServing)}</strong></div></div>
       {option.nutritionTotal && <p className="planning-small">Plan nutrition: {Math.round(option.nutritionTotal.kcal)} kcal · {option.nutritionTotal.proteinG} g protein · {option.nutritionTotal.fatG} g fat · {option.nutritionTotal.carbG} g carbs</p>}
