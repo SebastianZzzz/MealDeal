@@ -18,22 +18,3 @@ export function fromProfileRow(row: Record<string, unknown>): UserProfile {
     onboardingComplete: Boolean(row.onboarding_complete),
   };
 }
-
-export function toProfileRow(profile: UserProfile, auth0Id: string) {
-  return {
-    auth0_id: auth0Id,
-    role: profile.role,
-    lang: profile.lang,
-    units: profile.units,
-    dietary: profile.dietary,
-    allergies: profile.allergies,
-    cuisines: profile.cuisines,
-    meat_veg_ratio: profile.meatVegRatio,
-    default_servings: profile.defaultServings,
-    equipment: profile.equipment,
-    max_distance_km: profile.maxDistanceKm,
-    nutrition_goal: profile.nutritionGoal,
-    onboarding_complete: profile.onboardingComplete,
-    updated_at: new Date().toISOString(),
-  };
-}

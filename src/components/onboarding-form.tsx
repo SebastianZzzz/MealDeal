@@ -62,8 +62,8 @@ export function OnboardingForm() {
     <h1 style={{ fontSize: 34, letterSpacing: "-1.3px" }}>{headings[step]}</h1>
     {step === 0 && <section className="card">
       <p className="muted">This also sets our suggested cooking measurements. You can change them.</p>
-      <div className="chips"><button className={`chip ${profile.lang === "en" ? "active" : ""}`} onClick={() => chooseLanguage("en")}>English</button><button className={`chip ${profile.lang === "zh" ? "active" : ""}`} onClick={() => chooseLanguage("zh")}>中文</button></div>
-      <label className="field">Weight unit<select value={profile.units.weight} onChange={(e) => setProfile({ ...profile, units: { ...profile.units, weight: e.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams</option><option value="kg">kilograms</option><option value="lb">pounds</option><option value="jin">斤</option></select></label>
+      <div className="chips"><button className={`chip ${profile.lang === "en" ? "active" : ""}`} onClick={() => chooseLanguage("en")}>English</button><button className={`chip ${profile.lang === "zh" ? "active" : ""}`} onClick={() => chooseLanguage("zh")}>Chinese</button></div>
+      <label className="field">Weight unit<select value={profile.units.weight} onChange={(e) => setProfile({ ...profile, units: { ...profile.units, weight: e.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams</option><option value="kg">kilograms</option><option value="lb">pounds</option><option value="jin">jin (500 g)</option></select></label>
       <label className="field">Volume unit<select value={profile.units.volume} onChange={(e) => setProfile({ ...profile, units: { ...profile.units, volume: e.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres</option><option value="l">litres</option><option value="cup">cups</option></select></label>
     </section>}
     {step === 1 && <section className="card">
