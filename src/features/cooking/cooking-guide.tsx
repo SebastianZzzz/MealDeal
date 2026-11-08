@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
 import { GRAMS_PER, type MealPlan, type UnitPrefs, type WeightUnit } from "@/types";
@@ -127,7 +128,7 @@ export function CookingGuide({ plan, isDemo = false }: { plan: MealPlan; isDemo?
 
   return <main className={styles.page}>
     <header className={styles.header}>
-      <Link href="/" className={styles.brand} aria-label="MealDeal home"><span className={styles.brandMark}><Icon name="leaf" /></span>Meal<span>Deal</span></Link>
+      <Link href="/" className={styles.brand} aria-label="MealDeal home"><span className={styles.brandMark}><Image src="/images/mealdeal-logo.svg" alt="" width={28} height={28} priority /></span>Meal<span>Deal</span></Link>
       <span className={styles.stage}><span /> COOKING MODE</span>
     </header>
 
