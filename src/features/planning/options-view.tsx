@@ -11,6 +11,7 @@ import { getMealSlots } from "./slots";
 import { useSaved } from "./use-saved";
 import { storeCount } from "./rank-options";
 import { plural } from "@/lib/plural";
+import { ScreenHeader } from "@/components/screen-header";
 
 function recommendationLabel(option: PlanOption, index: number): string {
   if (index > 0) {
@@ -46,8 +47,8 @@ export function OptionsView() {
     }
   }
   return <main className="page planning-page">
-    <Link className="planning-back" href="/cook/plan">← Edit meal details</Link>
-    <p className="planning-eyebrow">COOK AT HOME · 2 OF 3</p><h1>Your budget.<br />A few good options.</h1>
+    <ScreenHeader backHref="/cook/plan" />
+    <p className="planning-eyebrow">COOK AT HOME / CHOOSE</p><h1>Meal options</h1>
     <p className="muted">{getMealSlots(request).length} meals · {request.servings} people · {formatMoney(request.budget)} total budget</p>
     <div className="planning-notices">{response.meta.warnings.map((warning) => <p className="planning-notice" key={warning}>{warning}</p>)}</div>
     <p className="planning-small muted">Choose your meals now. Cooking instructions come after shopping.</p>

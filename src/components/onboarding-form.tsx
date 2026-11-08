@@ -7,6 +7,7 @@ import { readApiError } from "@/lib/api-error";
 import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile-validation";
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
+import { Brand } from "@/components/brand";
 
 const options = {
   dietary: ["Vegetarian", "Vegan", "Halal", "Kosher"],
@@ -121,24 +122,25 @@ export function OnboardingForm() {
     }
   }
 
-  const headings = ["Measurement units", "Food preferences", "Your kitchen", "What's already at home?", "Shopping range"];
-  return <main className="page">
-    <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><b>MealDeal</b><span className="muted">{step + 1} / 5</span></header>
-    <div style={{ height: 7, background: "#e2e6df", borderRadius: 99, margin: "20px 0 34px" }}><div style={{ width: `${(step + 1) * 20}%`, height: "100%", background: "var(--green)", borderRadius: 99 }} /></div>
-    <h1 style={{ fontSize: 34, letterSpacing: "-1.3px" }}>{headings[step]}</h1>
-    {step === 0 && <section className="card">
+  const headings = ["Language & units", "Food preferences", "Your equipment", "Your pantry", "Shopping range"];
+  return <main className="page onboarding-page">
+    <header className="onboarding-header"><Brand compact /><span className="muted">STEP {step + 1} OF 5</span></header>
+    <div className="onboarding-progress"><div style={{ width: `${(step + 1) * 20}%` }} /></div>
+    <p className="planning-eyebrow">MAKE MEALDEAL YOURS</p>
+    <h1>{headings[step]}</h1>
+    {step === 0 && <section className="onboarding-section">
       <p className="muted">Choose how recipe quantities are displayed. MealDeal currently uses English.</p>
       <label className="field">Weight unit<select value={profile.units.weight} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, weight: event.target.value as UserProfile["units"]["weight"] } })}><option value="g">grams (g)</option><option value="kg">kilograms (kg)</option><option value="lb">pounds (lb)</option><option value="oz">ounces (oz)</option><option value="jin">jin (500 g)</option></select></label>
       <label className="field">Volume unit<select value={profile.units.volume} onChange={(event) => setProfile({ ...profile, units: { ...profile.units, volume: event.target.value as UserProfile["units"]["volume"] } })}><option value="ml">millilitres (ml)</option><option value="l">litres (l)</option><option value="cup">cups</option><option value="fl_oz">fluid ounces (fl oz)</option></select></label>
     </section>}
-    {step === 1 && <section className="card">
+    {step === 1 && <section className="onboarding-section">
       <p className="muted">Rules every plan must follow. You pick cuisines and the meat/veg balance each time you plan.</p>
       <label className="field">Dietary needs<Chips values={options.dietary} selected={profile.dietary} onChange={(dietary) => { setProfile(withDietary(profile, dietary)); setServerFields({}); }} />{(fields.dietary || fields.meatVegRatio) && <span style={fieldErrorStyle}>{fields.dietary || fields.meatVegRatio}</span>}</label>
       <label className="field">Allergies<Chips values={options.allergies} selected={profile.allergies} onChange={(allergies) => setProfile({ ...profile, allergies })} /></label>
       <label className="field">People I usually cook for<input type="number" min="1" max="20" aria-invalid={Boolean(fields.defaultServings)} value={Number.isFinite(profile.defaultServings) ? profile.defaultServings : ""} onChange={(event) => { setProfile({ ...profile, defaultServings: event.target.value === "" ? Number.NaN : Number(event.target.value) }); setServerFields((current) => ({ ...current, defaultServings: "" })); }} />{fields.defaultServings && <span style={fieldErrorStyle}>{fields.defaultServings}</span>}</label>
     </section>}
     {step === 2 && <section className="card"><p className="muted">Pot and stovetop are selected by default.</p><Chips values={options.equipment} selected={profile.equipment} onChange={(equipment) => setProfile({ ...profile, equipment })} /></section>}
-    {step === 3 && <section className="card">
+    {step === 3 && <section className="onboarding-section">
       <p className="muted">Add staples or leftovers. Rough is fine: we use it to decide how much to buy. Seasonings like soy sauce just need to be on the list.</p>
       <div style={{ display: "flex", gap: 8 }}><input aria-label="Pantry item" style={{ flex: 1, border: "1px solid #cbd7ce", borderRadius: 14, padding: 13 }} value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPantry(); } }} placeholder="e.g. rice, soy sauce" /><button className="btn" type="button" onClick={addPantry}>Add</button></div>
       <div style={{ display: "grid", gap: 9, marginTop: 18 }}>{pantry.map((item, index) => {
@@ -159,7 +161,7 @@ export function OnboardingForm() {
       })}</div>
       {fields._ && <p style={fieldErrorStyle}>{fields._}</p>}
     </section>}
-    {step === 4 && <section className="card">
+    {step === 4 && <section className="onboarding-section">
       <label className="field">Maximum shopping distance: {profile.maxDistanceKm} km<input type="range" min="0.5" max="15" step="0.5" value={profile.maxDistanceKm} onChange={(event) => setProfile({ ...profile, maxDistanceKm: Number(event.target.value) })} /></label>
       <label className="field">Optional nutrition goal<textarea rows={3} placeholder="e.g. prioritize protein" value={profile.nutritionGoal} onChange={(event) => setProfile({ ...profile, nutritionGoal: event.target.value })} /></label>
     </section>}

@@ -8,6 +8,8 @@ import { readApiError } from "@/lib/api-error";
 import { CATEGORIES } from "./categories.ts";
 import { normalizePrice } from "./pricing.ts";
 import type { NearbyStore } from "./stores.ts";
+import { Brand } from "@/components/brand";
+import { ScreenHeader } from "@/components/screen-header";
 
 const DEMO_CENTER = { lat: 49.2644, lng: -123.2537 };
 const MAX_SIDE = 1280;
@@ -175,8 +177,9 @@ export function ReportForm() {
   if (saved) {
     return (
       <main className="page">
-        <p style={{ color: "var(--green)", fontWeight: 800 }}>Thank you!</p>
-        <h1 style={{ fontSize: 34, letterSpacing: "-1.3px" }}>Prices shared with your community</h1>
+        <Brand compact />
+        <p className="planning-eyebrow">THANK YOU</p>
+        <h1>Prices shared with your community</h1>
         <section className="card">
           <p className="muted">Community-reported at {storeName} · {date}</p>
           <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
@@ -193,11 +196,9 @@ export function ReportForm() {
 
   return (
     <main className="page">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link href="/" style={{ color: "var(--ink)", fontWeight: 800, textDecoration: "none" }}>MealDeal</Link>
-      </header>
-      <p style={{ color: "var(--green)", fontWeight: 800, marginTop: 28 }}>Share a price</p>
-      <h1 style={{ fontSize: 34, letterSpacing: "-1.3px", margin: "8px 0 10px" }}>Snap a price tag</h1>
+      <ScreenHeader backHref="/" />
+      <p className="planning-eyebrow">SHARE A PRICE</p>
+      <h1>Snap a price tag.</h1>
       <p className="muted">We read the tag and work out the price per 100 g. Your photo is not saved.</p>
 
       <label className="btn" style={{ width: "100%", marginTop: 16, opacity: reading ? 0.6 : 1 }}>

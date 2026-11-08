@@ -7,6 +7,7 @@ import { notifySurplusChanged, SURPLUS_CHANGED } from "./browser-store";
 import { makeSurplusClient, type InventorySource } from "./client";
 import { distanceKm, SURPLUS_KEY } from "./inventory";
 import styles from "../community.module.css";
+import { ScreenHeader } from "@/components/screen-header";
 
 const money = (amount: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
 const pickup = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Vancouver", timeZoneName: "short" }).format(new Date(value));
@@ -64,8 +65,8 @@ export function SurplusView({ source = "local" }: { source?: InventorySource }) 
 
   const sorted = [...items].sort((a, b) => sort === "distance" && origin ? distanceKm(origin, a) - distanceKm(origin, b) : a.price - b.price);
   return <main className={styles.page}>
-    <nav className={styles.nav} aria-label="MealDeal navigation"><Link href="/">← MealDeal</Link><Link href="/support">Food support</Link></nav>
-    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / SURPLUS FOOD</p><h1>Good food.<br />A second chance.</h1><p>Browse end-of-day meals and save a portion for pickup.</p></header>
+    <ScreenHeader backHref="/" />
+    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / SURPLUS FOOD</p><h1>Surplus meals</h1><p>Browse end-of-day meals and save a portion for pickup.</p></header>
     <aside className={styles.notice}><strong>{source === "local" ? "Local demo — no real reservations." : "Shared inventory preview"}</strong><p>{source === "local" ? "Sample merchants and any listings you post are stored only in this browser. Reservations are simulated across its tabs. There is no payment or real merchant fulfilment." : "Listings are read from the shared service. Entries labeled sample data do not represent real merchants or food holds. Sign in to post or reserve."}</p><Link href={source === "local" ? "/eat-out/shared" : "/eat-out"}>{source === "local" ? "Open shared inventory preview →" : "Use the local demo →"}</Link></aside>
     <div className={styles.toolbar}><label className={styles.field}>Sort by<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="price">Lowest price</option><option value="distance" disabled={!origin}>Nearest to me</option></select></label><button className={styles.secondary} onClick={locate}>Use my location</button><Link className={styles.primary} href={source === "local" ? "/eat-out/post" : "/eat-out/shared/post"}>Post a sample listing</Link></div>
     {error && <p role="alert" className={styles.error}>{error}</p>}{message && <p role="status" className={styles.success}>{message}</p>}

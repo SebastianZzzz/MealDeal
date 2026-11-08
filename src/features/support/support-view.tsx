@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { foodResources } from "./resources";
 import styles from "../community.module.css";
+import { ScreenHeader } from "@/components/screen-header";
 
 const categories = [
   { value: "all", label: "All support" }, { value: "food_bank", label: "Food banks" },
@@ -17,8 +18,8 @@ export function SupportView() {
     && `${item.name} ${item.address} ${item.eligibility}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   return <main className={styles.page}>
-    <nav className={styles.nav} aria-label="MealDeal navigation"><Link href="/">← MealDeal</Link><Link href="/eat-out">Eat out</Link></nav>
-    <header className={styles.hero}><p className={styles.eyebrow}>FOOD SUPPORT / VANCOUVER</p><h1>A little help,<br />closer to home.</h1><p>Food banks, affordable groceries, and community meals. Find an option that works for you.</p></header>
+    <ScreenHeader backHref="/" />
+    <header className={styles.hero}><p className={styles.eyebrow}>FOOD SUPPORT / VANCOUVER</p><h1>Food support</h1><p>Food banks, affordable groceries, and community meals. Find an option that works for you.</p></header>
     <aside className={styles.notice}><strong>Check before you go.</strong><p>Hours, eligibility, holiday closures, and availability can change. Check the official source or contact the service before travelling. These are curated listings, not live availability.</p></aside>
     <label className={styles.field}>Find a resource<input type="search" placeholder="Search by name, area, or access needs" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
     <div className={styles.filters} role="group" aria-label="Resource category">{categories.map((item) => <button key={item.value} aria-pressed={category === item.value} onClick={() => setCategory(item.value)}>{item.label}</button>)}</div>

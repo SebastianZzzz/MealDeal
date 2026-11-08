@@ -7,6 +7,7 @@ import { makeSurplusClient, type InventorySource } from "./client";
 import type { ListingDraft } from "./inventory";
 import { ApiRequestError } from "../community/api-client";
 import styles from "../community.module.css";
+import { ScreenHeader } from "@/components/screen-header";
 
 export function SurplusPostForm({ source = "local" }: { source?: InventorySource }) {
   const [busy, setBusy] = useState(false);
@@ -46,8 +47,8 @@ export function SurplusPostForm({ source = "local" }: { source?: InventorySource
   }
 
   return <main className={styles.page}>
-    <nav className={styles.nav} aria-label="MealDeal navigation"><Link href={source === "local" ? "/eat-out" : "/eat-out/shared"}>← Surplus listings</Link><Link href="/support">Food support</Link></nav>
-    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / POST A LISTING</p><h1>Make a little<br />less go to waste.</h1><p>Try publishing a surplus food listing. No merchant account is needed for this demo.</p></header>
+    <ScreenHeader backHref={source === "local" ? "/eat-out" : "/eat-out/shared"} />
+    <header className={styles.hero}><p className={styles.eyebrow}>EAT OUT / LOCAL DEMO</p><h1>Post a meal</h1><p>Try publishing a surplus food listing. No merchant account is needed for this demo.</p></header>
     <aside className={styles.notice}><strong>Sample listings only.</strong><p>{source === "local" ? "This form saves to this browser." : "This form uses shared storage and requires Auth0 sign-in."} Every posted listing is labeled sample data. No real merchant is contacted and no food or payment is arranged.</p></aside>
     {saved && <p role="status" className={styles.success}>Your sample listing is saved. <Link href={source === "local" ? "/eat-out" : "/eat-out/shared"}>Browse and try reserving it →</Link></p>}
     <form onSubmit={(event) => void submit(event)} className={styles.form}>

@@ -1,4 +1,4 @@
-.page { max-width: 700px; margin: 0 auto; padding: 28px 24px 48px; color: var(--ink); }
+.page { max-width: 390px; min-height: 100dvh; margin: 0 auto; padding: 24px 24px 48px; color: var(--ink); }
 .page button, .page a, .page select { -webkit-tap-highlight-color: transparent; }
 .page button { cursor: pointer; }
 .page button:disabled { cursor: default; opacity: .5; }
@@ -15,7 +15,7 @@
 .demo { background: #e9eedf; border: 1px solid #dce3ce; color: #536143; font-size: 11px; padding: 9px 12px; border-radius: 6px; margin: 0; }
 .intro { padding: 34px 0 28px; }
 .eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 1.8px; margin: 0; color: #64715a; }
-.intro h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: clamp(43px, 9vw, 62px); line-height: 1.05; letter-spacing: -2px; margin: 15px 0 17px; }
+.intro h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 36px; line-height: 1.08; letter-spacing: -.8px; margin: 15px 0 17px; }
 .subtitle { max-width: 370px; font-size: 14px; color: var(--muted); line-height: 1.7; margin: 0; }
 .mealMeta { display: flex; gap: 22px; margin-top: 22px; font-size: 11px; color: #56654f; }
 .mealMeta > span { display: flex; gap: 7px; align-items: center; }
