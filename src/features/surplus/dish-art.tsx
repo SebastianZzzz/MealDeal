@@ -1,6 +1,11 @@
-// Picture for a listing card. Sample dishes with a photo use it; everything else gets a drawn tile
-// in the home page's style. Add a photo by dropping it in public/images and listing the id here.
+// Sample dishes use coordinated illustrations; custom listings keep a drawn fallback tile.
 const PHOTOS: Record<string, string> = {
+  "sample-campus-kitchen": "/images/vegetable-rice-bowl.jpg",
+  "sample-village-bakery": "/images/bread-pastry-bag.jpg",
+  "sample-campus-sushi": "/images/sushi-roll-box.jpg",
+  "sample-neighbourhood-cafe": "/images/soup-sandwich-set.jpg",
+  "sample-curry-corner": "/images/chickpea-curry-rice.jpg",
+  "sample-green-bowl": "/images/quinoa-salad-bowl.jpg",
   "sample-noodle-bar": "/images/home-noodles.jpg",
   "sample-bento-house": "/images/home-bento.jpg",
 };
