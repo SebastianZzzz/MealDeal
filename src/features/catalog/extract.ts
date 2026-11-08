@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ExtractedPrice, Product } from "@/types";
 import { CATEGORIES } from "./categories.ts";
+import { GeminiError, generateJson } from "./gemini.ts";
 import { normalizePrice } from "./pricing.ts";
 
 // Gemini only READS the tag: it copies the printed text. Sizes and prices are parsed by code (pricing.ts).
@@ -23,8 +24,6 @@ const tagSchema = z.object({
   ),
 });
 
-const geminiSchema = z.toJSONSchema(tagSchema, { unrepresentable: "any" });
-
 const PROMPT = [
   "You read grocery shelf price tags and flyer snippets from a photo.",
   "Return one item per distinct product price you can read. Return an empty list if there is no price tag.",
@@ -43,60 +42,20 @@ export class ExtractionError extends Error {
   }
 }
 
-// Fastest accurate models first (tested on real flyer snippets, ~1 s each). Override with GEMINI_TAG_MODELS="a,b,c".
-const DEFAULT_TAG_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-lite-latest"];
-const RETRYABLE = new Set([404, 429, 500, 503]);
-
-function tagModels(): string[] {
-  const configured = process.env.GEMINI_TAG_MODELS?.split(",").map((m) => m.trim()).filter(Boolean);
-  const models = configured?.length ? configured : DEFAULT_TAG_MODELS;
-  return models.filter((m) => /^[a-zA-Z0-9.-]+$/.test(m));
-}
-
 export async function extractPriceTag(image: { data: Buffer; mimeType: string }): Promise<ExtractedItem[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new ExtractionError("Price-tag reading is not configured (missing GEMINI_API_KEY).", 503);
-  const models = tagModels();
-  if (models.length === 0) throw new ExtractionError("Invalid GEMINI_TAG_MODELS configuration.", 503);
-
-  const request = JSON.stringify({
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: PROMPT }, { inline_data: { mime_type: image.mimeType, data: image.data.toString("base64") } }],
-      },
-    ],
-    generationConfig: { responseMimeType: "application/json", responseJsonSchema: geminiSchema, temperature: 0 },
-  });
-
-  // Try each model in order; move on when one is out of quota, overloaded or unreachable.
-  let response: Response | undefined;
-  for (const model of models) {
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
-      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-      body: request,
-    }).catch(() => undefined);
-    if (response && !RETRYABLE.has(response.status)) break;
-  }
-  if (!response) throw new ExtractionError("Could not reach the price-tag reader. Try again or enter the price manually.", 502);
-  // Never forward provider bodies: they can echo request data.
-  if (!response.ok) throw new ExtractionError(`Price-tag reader failed (${response.status}).`, 502);
-
-  const body = await response.json();
-  const text: string | undefined = body.candidates?.[0]?.content?.parts
-    ?.filter((part: { text?: string; thought?: boolean }) => part.text && !part.thought)
-    .map((part: { text: string }) => part.text)
-    .join("");
-  if (!text) throw new ExtractionError("The price-tag reader returned nothing. Try a closer photo.", 502);
-
   let parsed: z.infer<typeof tagSchema>;
   try {
-    parsed = tagSchema.parse(JSON.parse(text));
-  } catch {
-    throw new ExtractionError("The price-tag reader returned unreadable data. Try again.", 502);
+    parsed = await generateJson(
+      [{ text: PROMPT }, { inline_data: { mime_type: image.mimeType, data: image.data.toString("base64") } }],
+      tagSchema,
+    );
+  } catch (error) {
+    if (!(error instanceof GeminiError)) throw error;
+    const message =
+      error.status === 503
+        ? "Price-tag reading is not configured (missing GEMINI_API_KEY)."
+        : "Could not read the price tag right now. Try again or enter the price manually.";
+    throw new ExtractionError(message, error.status);
   }
   return parsed.items.filter((item) => item.name.trim() && item.priceText.trim()).map(toExtracted);
 }

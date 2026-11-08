@@ -1,11 +1,13 @@
 // Builds mock/stores.json and mock/products.json from real data:
 // stores from OpenStreetMap around Ponderosa (UBC), prices from this week's flyers on Flipp.
-// Usage: npm run seed:catalog
+// Gemini labels each product with a preset category (it never sees prices for this).
+// Usage: npm run seed:catalog (reads GEMINI_API_KEY from the environment or .env.local)
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Product, Store } from "../src/types.ts";
 import { fetchFlippDetail, flippToProduct, searchFlipp } from "../src/features/catalog/flipp.ts";
 import { fetchNearbyStores } from "../src/features/catalog/stores.ts";
+import { applyClassification, classifyProducts, type Classification } from "../src/features/catalog/classify.ts";
 
 const CENTER = { lat: 49.2644, lng: -123.2537 }; // Ponderosa Commons, UBC
 const RADIUS_KM = 5;
@@ -53,25 +55,46 @@ async function main() {
     } else console.warn(`no ${chain} within ${RADIUS_KM} km`);
   }
 
-  const products: Product[] = [];
+  // 1. Collect parsed candidates per (query, store).
+  const groups: { q: string; candidates: Product[] }[] = [];
   for (const { q, match, exclude, category } of QUERIES) {
     const items = await searchFlipp(q, POSTAL_CODE);
     for (const store of picked) {
-      const candidates = items.filter(
+      const matching = items.filter(
         (item) => item.merchant_name === store.chain && match.test(item.name ?? "") && !exclude?.test(item.name ?? ""),
       );
-      const parsed: Product[] = [];
-      for (const item of candidates.slice(0, 8)) {
+      const candidates: Product[] = [];
+      for (const item of matching.slice(0, 8)) {
         const product = flippToProduct(item, await fetchFlippDetail(item.flyer_item_id), store, category);
         // Planning only accepts gram-based products for now (no piece/ml mass mapping yet).
-        if (product && product.packageUnit === "g") parsed.push(product);
+        if (product && product.packageUnit === "g") candidates.push(product);
       }
-      parsed.sort((a, b) => a.pricePer100 - b.pricePer100);
-      for (const product of parsed.slice(0, PER_QUERY_PER_STORE)) {
-        if (!products.some((p) => p.id === product.id)) products.push(product);
-      }
+      groups.push({ q, candidates });
     }
-    console.log(`${q}: ${products.length} products so far`);
+  }
+
+  // 2. Gemini labels each candidate with a category and drops non-meal items (desserts, snacks, drinks).
+  //    Without a key, the search-term category is kept and nothing is dropped.
+  const unique = [...new Map(groups.flatMap((g) => g.candidates).map((p) => [p.id, p])).values()];
+  let labels = new Map<string, Classification>();
+  if (process.env.GEMINI_API_KEY) {
+    labels = await classifyProducts(unique.map((p) => ({ id: p.id, name: p.name, brand: p.brand })));
+    console.log(`classified ${labels.size}/${unique.length} candidates with Gemini`);
+  } else console.warn("GEMINI_API_KEY not set: keeping search-term categories");
+
+  // 3. Cheapest per 100 g for each (query, store).
+  const products: Product[] = [];
+  for (const { candidates } of groups) {
+    const usable = candidates
+      .filter((p) => labels.get(p.id)?.mealFood !== false)
+      .map((p) => applyClassification(p, labels.get(p.id)))
+      .sort((a, b) => a.pricePer100 - b.pricePer100);
+    for (const dropped of candidates.filter((p) => labels.get(p.id)?.mealFood === false)) {
+      console.log(`  skip (not meal food): ${dropped.name}`);
+    }
+    for (const product of usable.slice(0, PER_QUERY_PER_STORE)) {
+      if (!products.some((p) => p.id === product.id)) products.push(product);
+    }
   }
 
   const mock = path.join(process.cwd(), "mock");
