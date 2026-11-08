@@ -134,7 +134,7 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
         </section>
       </fieldset>
       {error && <p className="planning-error" role="alert">{error}</p>}
-      <button className="btn primary planning-full" disabled={busy} type="submit">{busy ? "Finding affordable meals…" : "Find my meal options →"}</button>
+      <div className="action-bar"><button className="btn primary" disabled={busy} type="submit">{busy ? "Finding affordable meals…" : "Find meals"}</button></div>
       {busy && <p className="muted planning-small" role="status">This usually takes about 15 seconds. We&apos;re checking ingredients, full-package costs and every meal. It may take longer when the service is busy.</p>}
     </form>
   </main>;

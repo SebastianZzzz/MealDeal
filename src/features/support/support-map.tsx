@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Map as LeafletMap, Marker } from "leaflet";
+import type { Circle, Map as LeafletMap, Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 export interface MapPoint { id: string; label: string; name: string; lat: number; lng: number }
@@ -13,11 +13,12 @@ function pin(L: Leaflet, label: string, active: boolean) {
 }
 
 // OpenStreetMap tiles through Leaflet: no API key. Leaflet touches `window`, so it loads in the browser only.
-export function SupportMap({ points, activeId, onSelect }: { points: MapPoint[]; activeId?: string; onSelect: (id: string) => void }) {
+export function SupportMap({ points, activeId, onSelect, radiusKm, label = "Map of food support locations" }: { points: MapPoint[]; activeId?: string; onSelect: (id: string) => void; radiusKm?: number; label?: string }) {
   const element = useRef<HTMLDivElement>(null);
   const leaflet = useRef<Leaflet | null>(null);
   const map = useRef<LeafletMap | null>(null);
   const markers = useRef<Map<string, Marker>>(new Map());
+  const circle = useRef<Circle | null>(null);
   const select = useRef(onSelect);
   useEffect(() => { select.current = onSelect; }, [onSelect]);
 
@@ -51,18 +52,24 @@ export function SupportMap({ points, activeId, onSelect }: { points: MapPoint[];
       if (!L || !map.current) return;
       markers.current.forEach((marker) => marker.remove());
       markers.current.clear();
+      circle.current?.remove();
+      circle.current = null;
       for (const point of points) {
         const marker = L.marker([point.lat, point.lng], { icon: pin(L, point.label, false), title: point.name, alt: point.name, keyboard: true }).addTo(map.current);
         marker.on("click", () => select.current(point.id));
         markers.current.set(point.id, marker);
       }
-      if (points.length > 1) map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
+      if (radiusKm && points.length === 1) {
+        // A distance setting: show the whole circle so the slider visibly changes the map.
+        circle.current = L.circle([points[0].lat, points[0].lng], { radius: radiusKm * 1000, color: "#00704a", weight: 2, fillOpacity: 0.08 }).addTo(map.current);
+        map.current.fitBounds(circle.current.getBounds(), { padding: [12, 12] });
+      } else if (points.length > 1) map.current.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [30, 30], maxZoom: 15 });
       else if (points.length === 1) map.current.setView([points[0].lat, points[0].lng], 15);
     }
     draw();
     node?.addEventListener("leaflet-ready", draw);
     return () => node?.removeEventListener("leaflet-ready", draw);
-  }, [points]);
+  }, [points, radiusKm]);
 
   // Highlight the selected place without re-fitting the whole map.
   useEffect(() => {
@@ -73,5 +80,5 @@ export function SupportMap({ points, activeId, onSelect }: { points: MapPoint[];
     if (active) map.current.panTo([active.lat, active.lng]);
   }, [activeId, points]);
 
-  return <div className="support-map" ref={element} role="region" aria-label="Map of food support locations" />;
+  return <div className="support-map" ref={element} role="region" aria-label={label} />;
 }

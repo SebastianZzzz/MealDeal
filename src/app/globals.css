@@ -123,7 +123,6 @@ h2, .planning-page h2 { font-family: var(--font-display); font-size: 23px; font-
 .chip:hover { border-color: var(--green); }
 .chip:active { transform: scale(.96); }
 .chip.active, .chip[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
-.chip.active::before, .chip[aria-pressed="true"]::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; }
 .chip-remove { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: -6px; border: 0; border-radius: 999px; background: rgb(0 0 0 / 8%); color: inherit; cursor: pointer; }
 
 /* Slider with round minus / plus */
@@ -145,7 +144,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .onboarding-header > span { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
 .onboarding-progress { height: 6px; overflow: hidden; background: var(--canvas-deep); border-radius: 99px; margin: 10px 0 18px; }
 .onboarding-progress > div { height: 100%; background: var(--green); border-radius: inherit; transition: width .3s ease; }
-.onboarding-page footer { position: sticky; bottom: 12px; display: flex; gap: 10px; margin: 26px -8px 0; padding: 8px; border-radius: 999px; background: rgb(244 241 234 / 94%); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 
 /* Home */
 .home-title { font-family: var(--font-display); font-size: 36px !important; font-weight: 600; line-height: 1.1; color: var(--green-deep); margin: 6px 0 20px !important; }
@@ -206,7 +204,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .chip-custom { padding: 0 6px 0 0; gap: 2px; cursor: default; }
 .chip-custom[data-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
 .chip-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 41px; padding: 0 4px 0 16px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.chip-toggle[aria-pressed="true"]::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat; }
 .chip-custom .chip-remove { width: 26px; height: 26px; margin: 0; background: rgb(0 0 0 / 7%); }
 .chip-custom[data-pressed="true"] .chip-remove { background: rgb(255 255 255 / 22%); }
 
@@ -225,3 +222,28 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .place-success { color: var(--green); }
 .place-success strong { font-weight: 800; color: var(--green-deep); }
 .place-error { color: var(--danger); font-weight: 700; }
+
+/* Action bar: the main actions of a step (Previous / Continue), placed after all of the page's content.
+   It scrolls with the page: never fixed or floating over the content. */
+.action-bar { display: flex; gap: 10px; align-items: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
+.action-bar > .btn { min-height: 50px; }
+.action-bar > .btn.primary { flex: 1; }
+.action-bar-hint { flex: 1; font-size: 14px; color: var(--muted); }
+
+/* Shared location picker: map first, then the result, then the two ways to set it. */
+.location-picker { display: grid; gap: 10px; margin-top: 12px; }
+.location-picker .area-map .support-map { height: 160px; }
+.location-row { display: flex; gap: 8px; }
+.location-row .btn { padding: 0 14px; white-space: nowrap; }
+.location-row .btn svg { width: 18px; height: 18px; }
+.location-row .text-input { flex: 1; min-width: 0; padding: 12px; }
+.link-btn { padding: 0; border: 0; background: none; color: var(--green); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.location-picker .range-field { margin-top: 4px; }
+
+/* Eat Out: one location line on top, a short page of listings, pager below. */
+.near-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius-input); background: var(--mint-soft); font-size: 15px; color: var(--ink-soft); }
+.near-line strong { color: var(--green-deep); font-weight: 800; }
+.near-line .btn.text { min-height: 36px; padding: 0; }
+.pager { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-top: 18px; }
+.pager span { font-size: 14px; color: var(--muted); text-align: center; }
+.pager .btn:last-child { justify-self: end; }
