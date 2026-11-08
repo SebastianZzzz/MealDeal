@@ -5,11 +5,14 @@ import {
   insertStore,
   recordPrice,
   selectProduct,
+  selectHistory,
   selectProducts,
   selectStore,
   selectStores,
   type Queryable,
 } from "./catalog-sql.ts";
+import type { HistoryPoint } from "./deal.ts";
+import { sampleHistory } from "./sample-history.ts";
 import { sortByDistance, type NearbyStore } from "./stores.ts";
 
 // Catalog data access. With DATABASE_URL set, everything lives in Tiger Data (A's shared pool).
@@ -29,6 +32,7 @@ async function database(): Promise<Pool | null> {
 interface MemoryCatalog {
   stores: Map<string, Store>;
   products: Map<string, Product>;
+  history: Map<string, HistoryPoint[]>; // productId -> observations
 }
 
 // Survive hot reloads in dev by keeping the in-memory catalog on globalThis.
@@ -36,9 +40,15 @@ const globalCatalog = globalThis as typeof globalThis & { __mealdealCatalog?: Me
 
 function memory(): MemoryCatalog {
   if (!globalCatalog.__mealdealCatalog) {
+    const products = seedProducts as Product[];
+    const history = new Map<string, HistoryPoint[]>();
+    const add = (productId: string, point: HistoryPoint) => history.set(productId, [...(history.get(productId) ?? []), point]);
+    for (const p of products) add(p.id, { pricePer100: p.pricePer100, observedAt: p.reportedAt, source: p.source });
+    for (const row of sampleHistory(products)) add(row.productId, row);
     globalCatalog.__mealdealCatalog = {
       stores: new Map((seedStores as Store[]).map((store) => [store.id, store])),
-      products: new Map((seedProducts as Product[]).map((product) => [product.id, product])),
+      products: new Map(products.map((product) => [product.id, product])),
+      history,
     };
   }
   return globalCatalog.__mealdealCatalog;
@@ -105,7 +115,10 @@ export async function getProduct(id: string): Promise<Product | undefined> {
 export async function saveProduct(product: Product): Promise<Product> {
   const db = await database();
   if (!db) {
-    memory().products.set(product.id, product);
+    const mem = memory();
+    mem.products.set(product.id, product);
+    const point: HistoryPoint = { pricePer100: product.pricePer100, observedAt: product.reportedAt, source: product.source };
+    mem.history.set(product.id, [...(mem.history.get(product.id) ?? []), point]);
     return product;
   }
   const client = await db.connect(); // a transaction needs one connection
@@ -115,4 +128,14 @@ export async function saveProduct(product: Product): Promise<Product> {
     client.release();
   }
   return (await selectProduct(db, product.id)) ?? product;
+}
+
+// Observations for one product in [since, until).
+export async function listHistory(productId: string, since: Date, until: Date): Promise<HistoryPoint[]> {
+  const db = await database();
+  if (db) return selectHistory(db, productId, since.toISOString(), until.toISOString());
+  return (memory().history.get(productId) ?? []).filter((point) => {
+    const t = new Date(point.observedAt).getTime();
+    return t >= since.getTime() && t < until.getTime();
+  });
 }
