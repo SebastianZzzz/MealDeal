@@ -15,6 +15,9 @@ const pantrySchema = z.array(z.object({
 export async function GET() {
   const identity = await getIdentity();
   if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ items: [], mode: "demo" });
+  }
   try {
     assertDatabaseConfigured();
     const result = await db.query(
@@ -46,6 +49,9 @@ export async function PUT(request: Request) {
   if (!identity?.sub) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = pantrySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) {
+    return NextResponse.json({ items: parsed.data, mode: "demo" });
+  }
   let client: PoolClient | undefined;
   let transactionOpen = false;
   try {
