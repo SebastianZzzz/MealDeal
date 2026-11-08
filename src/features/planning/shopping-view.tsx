@@ -73,7 +73,7 @@ function ShoppingList({ initialPlan }: { initialPlan: MealPlan }) {
     }
   }
 
-  return <main className="page planning-page has-action-bar">
+  return <main className="page planning-page">
     <ScreenHeader backHref="/cook/options" />
     <p className="planning-eyebrow">COOK AT HOME / SHOPPING</p><h1>Shopping list</h1>
     <p className="muted">{plan.chosen.title}</p>

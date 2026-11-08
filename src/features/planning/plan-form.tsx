@@ -104,7 +104,7 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
   }
 
   const count = duration === "one_meal" ? 1 : (duration === "week" ? 7 : Number(days)) * Number(meals);
-  return <main className="page planning-page has-action-bar">
+  return <main className="page planning-page">
     <ScreenHeader backHref="/cook" />
     <p className="planning-eyebrow">COOK AT HOME / PLAN</p>
     <h1>Plan a meal</h1>

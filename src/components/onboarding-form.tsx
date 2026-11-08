@@ -8,16 +8,17 @@ import { dietaryFieldErrors, normalizeDietary, withDietary } from "@/lib/profile
 import { PANTRY_AMOUNTS, guessPantryKind, type PantryAmount } from "@/lib/pantry-amounts";
 import { defaultProfile, type PantryItem, type UserProfile } from "@/contracts";
 import { RangeField } from "@/components/range-field";
-import { POSTAL_CODE, normalizePostal } from "@/lib/postal";
 import { classifyCustomChoice, formatProblem, type ChoiceKind } from "@/lib/custom-choices";
-import { SupportMap } from "@/features/support/support-map";
-import { LocateFixed, Trash2, X } from "lucide-react";
+import { LocationPicker } from "@/components/location-picker";
+import { Trash2, X } from "lucide-react";
 
 const options = {
   dietary: ["Vegetarian", "Vegan", "Halal", "Kosher"],
   allergies: ["Peanuts", "Tree nuts", "Dairy", "Eggs", "Gluten", "Shellfish"],
   equipment: ["Stovetop", "Pot", "Pan", "Oven", "Microwave", "Rice cooker", "Air fryer", "Blender"],
 };
+
+const STEPS = 6;
 
 const fieldErrorStyle = { color: "#a32626", fontSize: 13, marginTop: 6 } as const;
 
@@ -27,7 +28,8 @@ function stepForFields(fields: Record<string, string>, fallback: number) {
   if (names.some((name) => ["dietary", "allergies", "cuisines", "meatVegRatio", "defaultServings"].includes(name))) return 1;
   if (names.some((name) => name === "equipment")) return 2;
   if (names.some((name) => /^\d+\./.test(name) || name === "_")) return 3;
-  if (names.some((name) => ["maxDistanceKm", "nutritionGoal"].includes(name))) return 4;
+  if (names.some((name) => name === "maxDistanceKm" || name === "home")) return 4;
+  if (names.some((name) => name === "nutritionGoal")) return 5;
   return fallback;
 }
 
@@ -113,10 +115,6 @@ export function OnboardingForm() {
   const [custom, setCustom] = useState<Record<"dietary" | "allergies" | "equipment" | "goal", string[]>>({ dietary: [], allergies: [], equipment: [], goal: [] });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const note = (key: string) => (text: string) => setNotes((current) => ({ ...current, [key]: text }));
-  const [locating, setLocating] = useState(false);
-  const [postal, setPostal] = useState("");
-  type PlaceStatus = { tone: "info" | "success" | "error"; text: string; place?: string; after?: string };
-  const [placeStatus, setPlaceStatus] = useState<PlaceStatus | null>(null);
   // Opened from the kitchen check to change one thing: show "Save changes" on that step.
   const [editingOne, setEditingOne] = useState(false);
   const addCustom = (key: keyof typeof custom, value: string) => setCustom((current) => ({ ...current, [key]: current[key].includes(value) ? current[key] : [...current[key], value] }));
@@ -130,7 +128,7 @@ export function OnboardingForm() {
   useEffect(() => {
     // /onboarding?step=4 opens one step directly (the kitchen check links here).
     const requested = Number(new URLSearchParams(window.location.search).get("step"));
-    if (Number.isInteger(requested) && requested >= 1 && requested <= 5) Promise.resolve().then(() => { setStep(requested - 1); setEditingOne(true); });
+    if (Number.isInteger(requested) && requested >= 1 && requested <= STEPS) Promise.resolve().then(() => { setStep(requested - 1); setEditingOne(true); });
   }, []);
 
   useEffect(() => {
@@ -192,57 +190,6 @@ export function OnboardingForm() {
     if (removed) setNotes((current) => ({ ...current, pantry: `${removed.name} removed.` }));
   }
 
-  async function describe(lat: number, lng: number) {
-    try {
-      const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
-      if (!response.ok) return null;
-      return (await response.json() as { area: string | null }).area;
-    } catch {
-      return null;
-    }
-  }
-
-  function setFromCurrentLocation() {
-    if (!navigator.geolocation) { setPlaceStatus({ tone: "error", text: "This browser can't share a location. Enter a postal code instead." }); return; }
-    setLocating(true);
-    setPlaceStatus({ tone: "info", text: "Finding you…" });
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const home = { lat: Math.round(position.coords.latitude * 1000) / 1000, lng: Math.round(position.coords.longitude * 1000) / 1000 };
-      setProfile((current) => ({ ...current, home }));
-      const area = await describe(home.lat, home.lng);
-      setPlaceStatus(area
-        ? { tone: "success", text: "Found you near ", place: area, after: ". Not right? Enter a postal code." }
-        : { tone: "success", text: "Found your location (shown on the map). Not right? Enter a postal code." });
-      setLocating(false);
-    }, (failure) => {
-      setPlaceStatus({ tone: "error", text: failure.code === failure.PERMISSION_DENIED
-        ? "Location access is off for this site. Allow it (iPhone: Settings > Privacy > Location Services > Safari Websites), or enter a postal code."
-        : failure.code === failure.TIMEOUT ? "Finding your location took too long. Try again, or enter a postal code." : "Your location isn't available right now. Enter a postal code instead." });
-      setLocating(false);
-    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
-  }
-
-  async function setFromPostal() {
-    if (!postal.trim()) return;
-    // Check the format here so a typo never leaves the page.
-    if (!POSTAL_CODE.test(postal.trim())) {
-      setPlaceStatus({ tone: "error", text: "That isn't a Canadian postal code. Use the format A1A 1A1, like V6T 1Z4." });
-      return;
-    }
-    setLocating(true);
-    try {
-      const response = await fetch(`/api/geocode?postal=${encodeURIComponent(postal.trim())}`);
-      if (!response.ok) throw new Error((await readApiError(response)).error);
-      const place = await response.json() as { lat: number; lng: number; postal: string; area: string | null };
-      setProfile((current) => ({ ...current, home: { lat: place.lat, lng: place.lng } }));
-      setPlaceStatus({ tone: "success", text: "Shopping area set near ", place: place.area ? `${place.postal} (${place.area})` : place.postal, after: "." });
-    } catch (cause) {
-      setPlaceStatus({ tone: "error", text: cause instanceof Error ? cause.message : "Could not find that postal code." });
-    } finally {
-      setLocating(false);
-    }
-  }
-
   function updatePantry(index: number, change: Partial<PantryItem>) {
     setPantry((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...change } : item));
   }
@@ -290,10 +237,10 @@ export function OnboardingForm() {
     }
   }
 
-  const headings = ["Units", "Food preferences", "Your equipment", "Your pantry", "Shopping range"];
-  return <main className="page onboarding-page has-action-bar">
-    <header className="onboarding-header"><span className="muted">STEP {step + 1} OF 5</span></header>
-    <div className="onboarding-progress"><div style={{ width: `${(step + 1) * 20}%` }} /></div>
+  const headings = ["Units", "Food preferences", "Your equipment", "Your pantry", "Shopping range", "Nutrition goal"];
+  return <main className="page onboarding-page">
+    <header className="onboarding-header"><span className="muted">STEP {step + 1} OF {STEPS}</span></header>
+    <div className="onboarding-progress"><div style={{ width: `${((step + 1) / STEPS) * 100}%` }} /></div>
     <p className="planning-eyebrow">MAKE MEALDEAL YOURS</p>
     <h1>{headings[step]}</h1>
     {step === 0 && <section className="onboarding-section">
@@ -330,30 +277,22 @@ export function OnboardingForm() {
       })}</div>
       {fields._ && <p style={fieldErrorStyle}>{fields._}</p>}
     </section>}
-    {step === 4 && <section className="onboarding-section">
-      <div className="field" role="group" aria-label="Where you shop from">Where do you shop from?
-        <p className="muted" style={{ margin: 0, fontWeight: 400, fontSize: 15 }}>We use this to pick stores within your distance. Only an area (about 100 m) is saved.</p>
-        <button type="button" className="btn secondary" disabled={locating} onClick={setFromCurrentLocation}><LocateFixed aria-hidden="true" />{locating ? "Finding you…" : "Use my location"}</button>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input className="text-input" style={{ flex: 1, minWidth: 0 }} aria-label="Postal code" placeholder="or postal code, e.g. V6T 1Z4" maxLength={7} autoComplete="postal-code" value={postal}
-            onChange={(event) => setPostal(normalizePostal(event.target.value).slice(0, 7))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void setFromPostal(); } }} />
-          <button type="button" className="btn secondary" disabled={locating || !postal.trim()} onClick={() => void setFromPostal()}>Set</button>
-        </div>
-        <span role="status" className={`place-status place-${placeStatus?.tone ?? "info"}`}>{placeStatus
-          ? <>{placeStatus.text}{placeStatus.place && <strong>{placeStatus.place}</strong>}{placeStatus.after}</>
-          : profile.home ? "Shopping area saved (shown below)." : "No shopping area yet: plans use stores near UBC."}</span>
-        {profile.home && <div className="area-map"><SupportMap points={[{ id: "home", label: "•", name: "Your shopping area", lat: profile.home.lat, lng: profile.home.lng }]} onSelect={() => undefined} /></div>}
-        {profile.home && <button type="button" className="btn text" style={{ justifySelf: "start" }} onClick={() => { setProfile({ ...profile, home: null }); setPlaceStatus({ tone: "info", text: "Shopping area cleared." }); }}>Clear shopping area</button>}
-      </div>
-      <RangeField id="max-distance" label="Shopping distance" value={profile.maxDistanceKm} min={0.5} max={15} step={0.5} format={(value) => `${value} km`} onChange={(maxDistanceKm) => setProfile({ ...profile, maxDistanceKm })} />
-      <div className="field" role="group" aria-label="Nutrition goal">Nutrition goal (optional)<Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput kind="goal" label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
+    {step === 4 && <section className="onboarding-section compact-section">
+      <p className="muted" style={{ margin: 0, fontSize: 15 }}>We pick stores within this distance of where you shop from. Only an area (about 100 m) is saved.</p>
+      <LocationPicker value={profile.home ?? null} onChange={(home) => setProfile((current) => ({ ...current, home }))}
+        distanceKm={profile.maxDistanceKm} onDistance={(maxDistanceKm) => setProfile((current) => ({ ...current, maxDistanceKm }))} distanceLabel="Shopping distance"
+        mapName="Your shopping area" setText="Shopping area set near " savedText="Shopping area saved (shown on the map)." emptyText="No shopping area yet: plans use stores near UBC (shown on the map)." />
+    </section>}
+    {step === 5 && <section className="onboarding-section">
+      <p className="muted">Optional. Plans lean toward this goal when it fits your budget.</p>
+      <div className="field" role="group" aria-label="Nutrition goal"><Chips values={NUTRITION_GOALS} custom={custom.goal} onRemove={(value) => { dropCustom("goal", value); note("goal")(`${value} removed.`); if (profile.nutritionGoal === value) setProfile({ ...profile, nutritionGoal: "" }); }} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} onChange={(picked) => setProfile({ ...profile, nutritionGoal: picked.filter((item) => item !== profile.nutritionGoal)[0] ?? "" })} /><OtherInput kind="goal" label="nutrition goal" values={[...NUTRITION_GOALS, ...custom.goal]} selected={profile.nutritionGoal ? [profile.nutritionGoal] : []} note={notes.goal ?? ""} onNote={note("goal")} onAdd={(value) => addCustom("goal", value)} onSelect={(nutritionGoal) => setProfile({ ...profile, nutritionGoal })} /></div>
     </section>}
     {error && <p role="alert" style={{ color: "#a32626" }}>{error}</p>}
     <footer className="action-bar">
       {step > 0 && !editingOne && <button type="button" className="btn secondary" onClick={() => { setStep(step - 1); setError(""); setServerFields({}); }}>← Previous</button>}
       {editingOne
         ? <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => void finish()}>{saving ? "Saving…" : "Save changes"}</button>
-        : <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < 4 ? continueOnboarding() : void finish()}>{step < 4 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>}
+        : <button type="button" className="btn primary" style={{ flex: 1 }} disabled={saving || (step === 1 && Object.keys(preferenceFields).length > 0)} onClick={() => step < STEPS - 1 ? continueOnboarding() : void finish()}>{step < STEPS - 1 ? "Continue" : saving ? "Saving…" : "Start planning"}</button>}
     </footer>
   </main>;
 }
