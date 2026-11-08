@@ -12,6 +12,19 @@ npm run dev
 
 The default environment enables demo mode, so onboarding works with browser storage before any cloud account is configured.
 
+## Cooking and community features (D)
+
+- `/cook/cooking`: cook the selected plan; `/cook/demo`: independent sample plan.
+- `/support`: curated food resources; `/api/resources`: resource query API.
+- `/eat-out` and `/eat-out/post`: local sample listings and reservations.
+- `/eat-out/shared` and `/eat-out/shared/post`: shared API preview, pending the database adapter.
+
+Run D tests with Node.js 22.18 or newer:
+
+```bash
+node --experimental-strip-types --import ./tests/d-paths.mjs --test tests/d-api.test.mjs src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs
+```
+
 ## Connect Auth0 and Supabase
 
 1. Create a Regular Web Application in Auth0. Set callback URL to `http://localhost:3000/auth/callback` and logout URL to `http://localhost:3000`.
