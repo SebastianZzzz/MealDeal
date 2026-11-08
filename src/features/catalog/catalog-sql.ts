@@ -1,4 +1,4 @@
-import type { Product, Store } from "@/types";
+import type { Food, Product, Store } from "@/types";
 
 // SQL for the catalog tables (db/migrations/20261107220000_catalog.sql).
 // Takes any pg-style client, so both the app (A's shared pool) and Node scripts (a plain pg Client) use it.
@@ -85,6 +85,16 @@ export async function selectProducts(db: Queryable, filter: ProductFilter = {}):
 export async function selectProduct(db: Queryable, id: string): Promise<Product | undefined> {
   const { rows } = await db.query("select * from products where id = $1", [id]);
   return rows[0] ? rowToProduct(rows[0]) : undefined;
+}
+
+// Nutrition per 100 g from mock/foods.json. Products reference these ids, so load foods first.
+export async function upsertFood(db: Queryable, food: Food): Promise<void> {
+  await db.query(
+    `insert into foods (id, name, kcal, protein_g, fat_g, carb_g, db_ref) values ($1, $2, $3, $4, $5, $6, $7)
+     on conflict (id) do update set name = excluded.name, kcal = excluded.kcal, protein_g = excluded.protein_g,
+       fat_g = excluded.fat_g, carb_g = excluded.carb_g, db_ref = excluded.db_ref`,
+    [food.id, food.name, food.kcal, food.proteinG, food.fatG, food.carbG, food.dbRef ?? null],
+  );
 }
 
 // Upsert the current price. An older report (e.g. a back-dated tag) never overwrites a newer price.

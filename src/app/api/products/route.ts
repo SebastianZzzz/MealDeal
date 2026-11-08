@@ -7,6 +7,8 @@ import { CATEGORIES } from "@/features/catalog/categories";
 import { productId } from "@/features/catalog/flipp";
 import { normalizePrice } from "@/features/catalog/pricing";
 import { getStore, listProducts, saveProduct, saveStore } from "@/features/catalog/repo";
+import { matchFood, matchFoodsWithGemini } from "@/features/catalog/nutrition";
+import foods from "../../../../mock/foods.json";
 
 const listSchema = z.object({
   storeId: z.string().optional(),
@@ -96,10 +98,23 @@ export async function POST(request: Request) {
     reportedAt: !report.date || report.date === today ? new Date().toISOString() : `${report.date}T12:00:00-08:00`,
     category: report.category,
   };
+  product.foodId = await foodFor(product);
   try {
     return NextResponse.json({ product: await saveProduct(product) }, { status: 201 });
   } catch (error) {
     console.error("POST /api/products failed", error instanceof Error ? error.message : error);
     return apiError("DATABASE_UNAVAILABLE", "Your price couldn't be saved right now. Try again shortly.");
+  }
+}
+
+// Nutrition link for a new report: code rules first, then a quick Gemini pick from our food list.
+// Failing to match is fine; the product just has no nutrition yet.
+async function foodFor(product: Product): Promise<string | undefined> {
+  const byCode = matchFood(product.name, product.brand);
+  if (byCode) return byCode;
+  try {
+    return (await matchFoodsWithGemini([product], foods, 5_000)).get(product.id);
+  } catch {
+    return undefined;
   }
 }

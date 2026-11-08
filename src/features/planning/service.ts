@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Food } from "@/types";
 import type { PlanningResponse } from "@/contracts/planning-api";
 import { calculateOption } from "./calculate";
 import { loadCatalog, type Catalog } from "./catalog";
@@ -68,6 +69,7 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   const generationContext = { deadline: Date.now() + 50000, unavailableModels: new Set<string>() };
   let feedback = "";
   const maxAttempts = mode === "gemini" ? MAX_GENERATION_ATTEMPTS : 1;
+  const foodMap = new Map(catalog.foods.map((food) => [food.id, food]));
   let noteIgnored = false;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (mode === "gemini" && Date.now() >= generationContext.deadline) {
@@ -76,7 +78,7 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
     let drafts: unknown[];
     try {
       if (mode === "gemini") {
-        const generated = await generateWithGemini(input.request, profile, pantry, products, feedback, generationContext);
+        const generated = await generateWithGemini(input.request, profile, withNutrition(pantry, foodMap), withNutrition(products, foodMap), feedback, generationContext);
         drafts = generated.options;
         noteIgnored ||= generated.noteIgnored;
       } else {
@@ -136,4 +138,12 @@ export async function generatePlan(input: PlanningInput, catalogSnapshot?: Catal
   }
   options.sort(comparePlanOptions);
   return { requestId, options: options.slice(0, 3), meta: { mode, isSample: catalog.isSample, stores: catalog.stores, products, missingNutrition, warnings } };
+}
+
+// Gemini gets per-100 g nutrition as a hint for portion sizes; reported nutrition is always computed by code.
+function withNutrition<T extends { foodId?: string }>(items: T[], foods: Map<string, Food>): T[] {
+  return items.map((item) => {
+    const food = item.foodId ? foods.get(item.foodId) : undefined;
+    return food ? { ...item, nutritionPer100: { kcal: food.kcal, proteinG: food.proteinG, fatG: food.fatG, carbG: food.carbG } } : item;
+  });
 }

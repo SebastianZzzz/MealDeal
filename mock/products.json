@@ -12,7 +12,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "rice-white-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:western-family-jasmine-rice-907g",
@@ -27,7 +28,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "rice-white-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:tilda-basmati-rice-4540g",
@@ -42,7 +44,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "rice-white-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:western-family-pasta-900g",
@@ -57,7 +60,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "pasta-dry"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:catelli-pasta-900g",
@@ -72,7 +76,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "pasta-dry"
   },
   {
     "id": "no-frills@west-5th-avenue:catelli-protein-pasta-340g",
@@ -87,7 +92,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "pasta-dry"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:sapporo-ichiban-noodles-100g",
@@ -102,7 +108,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "noodles-ramen-dry"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:western-family-protein-oatmeal-300g",
@@ -117,7 +124,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "oats-dry"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:white-bread-567g",
@@ -132,7 +140,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "bread-white"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:d-italiano-bread-675g",
@@ -147,7 +156,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "bread-white"
   },
   {
     "id": "no-frills@west-5th-avenue:country-harvest-bread-600g",
@@ -162,7 +172,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "bread-whole-wheat"
   },
   {
     "id": "no-frills@west-5th-avenue:natural-bakery-sourdough-bread-600g",
@@ -177,7 +188,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "grain"
+    "category": "grain",
+    "foodId": "bread-sourdough"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:only-goodness-whole-frying-chicken-454g",
@@ -192,7 +204,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "chicken-whole-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:only-goodness-chicken-drumsticks-454g",
@@ -207,7 +220,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "chicken-drumstick-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:split-chicken-wings-454g",
@@ -222,7 +236,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "chicken-wing-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:marcangelo-chicken-roast-600g",
@@ -237,7 +252,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "chicken-whole-raw"
   },
   {
     "id": "urban-fare@5380-university-boulevard:chicken-breast-454g",
@@ -252,7 +268,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "chicken-breast-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:lean-ground-beef-900g",
@@ -267,7 +284,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "beef-ground-85-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:pork-tenderloin-454g",
@@ -282,7 +300,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "pork-tenderloin-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:pork-loin-chops-454g",
@@ -297,7 +316,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "pork-loin-chop-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:whole-pork-picnic-454g",
@@ -312,7 +332,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "pork-shoulder-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:swiss-chalet-or-montana-s-pork-back-ribs-650g",
@@ -342,7 +363,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "pork-tenderloin-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:sunrise-tofu-or-tofu-dessert-300g",
@@ -357,7 +379,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "protein"
+    "category": "protein",
+    "foodId": "tofu-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:western-family-yellow-potatoes-680g",
@@ -372,7 +395,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "vegetable"
+    "category": "vegetable",
+    "foodId": "potato-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:carrots-1361g",
@@ -387,7 +411,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "vegetable"
+    "category": "vegetable",
+    "foodId": "carrot-raw"
   },
   {
     "id": "no-frills@west-5th-avenue:broccoli-crowns-454g",
@@ -402,7 +427,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "vegetable"
+    "category": "vegetable",
+    "foodId": "broccoli-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:grape-tomatoes-264g",
@@ -417,7 +443,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "vegetable"
+    "category": "vegetable",
+    "foodId": "tomato-raw"
   },
   {
     "id": "urban-fare@5380-university-boulevard:organic-heirloom-tomatoes-454g",
@@ -432,7 +459,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "vegetable"
+    "category": "vegetable",
+    "foodId": "tomato-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:gala-apples-454g",
@@ -447,7 +475,8 @@
     "source": "flyer",
     "confidence": 0.9,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "fruit"
+    "category": "fruit",
+    "foodId": "apple-raw"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:kraft-cheese-slices-410g",
@@ -462,7 +491,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-processed"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:western-family-ricotta-cheese-500g",
@@ -477,7 +507,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-ricotta"
   },
   {
     "id": "no-frills@west-5th-avenue:no-name-processed-cheese-slices-400g",
@@ -492,7 +523,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-processed"
   },
   {
     "id": "no-frills@west-5th-avenue:no-name-cheese-bars-700g",
@@ -507,7 +539,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-cheddar"
   },
   {
     "id": "urban-fare@5380-university-boulevard:western-family-shredded-cheese-320g",
@@ -522,7 +555,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-cheddar"
   },
   {
     "id": "urban-fare@5380-university-boulevard:boursin-cheese-150g",
@@ -537,7 +571,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "cheese-cream"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:danone-activia-yogurt-650g",
@@ -552,7 +587,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "yogurt-plain"
   },
   {
     "id": "save-on-foods@5945-berton-avenue:danone-oikos-greek-yogurt-650g",
@@ -567,7 +603,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T02:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "yogurt-greek"
   },
   {
     "id": "no-frills@west-5th-avenue:activia-yogurt-650g",
@@ -582,7 +619,8 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "yogurt-plain"
   },
   {
     "id": "no-frills@west-5th-avenue:liberte-mediterranee-yogurt-500g",
@@ -597,6 +635,7 @@
     "source": "flyer",
     "confidence": 1,
     "reportedAt": "2026-11-05T03:00:00-05:00",
-    "category": "dairy"
+    "category": "dairy",
+    "foodId": "yogurt-plain"
   }
 ]

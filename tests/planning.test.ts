@@ -136,6 +136,15 @@ test("adapts rough onboarding amounts and never limits seasonings", () => {
   assert.deepEqual(items.map((item) => item.qtyG), [300, 400, undefined, undefined, 2000]);
 });
 
+test("pantry items get a nutrition food from their name", () => {
+  const items = adaptPantry([
+    { id: "eggs", name: "Eggs", qtyG: 0 },
+    { id: "rice", name: "jasmine rice", qtyG: 0 },
+    { id: "mystery", name: "Grandma's sauce", qtyG: 0 },
+  ], "student");
+  assert.deepEqual(items.map((item) => item.foodId), ["egg-raw", "rice-white-raw", undefined]);
+});
+
 test("an explicit zero in the shared pantry contract still means no finite stock", () => {
   const pantry: PantryItem = { id: "empty", userId: "student", name: "Rice", qtyG: 0, updatedAt: "2026-11-07" };
   const plan = draft(1);

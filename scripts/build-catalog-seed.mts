@@ -1,6 +1,7 @@
 // Builds mock/stores.json and mock/products.json from real data:
 // stores from OpenStreetMap around Ponderosa (UBC), prices from this week's flyers on Flipp.
-// Gemini labels each product with a preset category (it never sees prices for this).
+// Gemini labels each product with a preset category (it never sees prices for this),
+// and links it to a nutrition-database food when the code rules can't.
 // Usage: npm run seed:catalog (reads GEMINI_API_KEY from the environment or .env.local)
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -8,6 +9,8 @@ import type { Product, Store } from "../src/types.ts";
 import { fetchFlippDetail, flippToProduct, searchFlipp } from "../src/features/catalog/flipp.ts";
 import { fetchNearbyStores } from "../src/features/catalog/stores.ts";
 import { applyClassification, classifyProducts, type Classification } from "../src/features/catalog/classify.ts";
+import { assignFoods } from "../src/features/catalog/nutrition.ts";
+import { readFoods } from "./match-foods.mts";
 
 const CENTER = { lat: 49.2644, lng: -123.2537 }; // Ponderosa Commons, UBC
 const RADIUS_KM = 5;

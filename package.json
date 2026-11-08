@@ -12,6 +12,7 @@
     "test:api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/*.test.mts",
     "test:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/features/catalog/*.test.mts",
     "seed:catalog": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-catalog-seed.mts",
+    "seed:foods": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/match-foods.mts",
     "test:planning": "tsc -p tsconfig.planning-tests.json && node --import ./tests/planning-paths.mjs --test .test-build/tests/planning.test.js",
     "test:d": "node --experimental-strip-types --import ./tests/d-paths.mjs --test tests/d-api.test.mjs src/features/cooking/session.test.mjs src/features/cooking/plan-storage.test.mjs src/features/surplus/inventory.test.mjs"
   },
