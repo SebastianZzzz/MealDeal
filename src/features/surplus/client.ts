@@ -3,6 +3,7 @@
 import type { SurplusListing } from "@/types";
 import { makeBrowserInventory } from "./browser-store";
 import { validDraft, type ListingDraft, type ReserveResult } from "./inventory";
+import { requireOk } from "../community/api-client";
 
 export type InventorySource = "local" | "shared";
 interface Client {
@@ -12,9 +13,8 @@ interface Client {
 }
 
 async function responseJson(response: Response) {
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "The shared service could not complete this request.");
-  return body;
+  await requireOk(response);
+  return response.json();
 }
 function listing(value: unknown): SurplusListing {
   if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "string"
@@ -42,7 +42,6 @@ export function makeSurplusClient(source: InventorySource): Client {
     },
     reserve: async (id) => {
       const response = await fetch(`/api/surplus/${encodeURIComponent(id)}/reserve`, { method: "POST", signal: AbortSignal.timeout(10000) });
-      if (response.status === 409) return { ok: false, reason: "sold_out" };
       const body = await responseJson(response);
       return { ok: true, listing: listing(body.listing) };
     },
