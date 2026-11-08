@@ -3,9 +3,15 @@ import type { PantryItem, PlanRequest, Product, UserProfile } from "@/types";
 import { draftOptionSchema, draftResponseSchema } from "./schema";
 import { getMealSlots } from "./slots";
 
-// Refinements are enforced locally. Gemini receives the corresponding structural schema.
+// Keep decoder constraints small; nested bounds can exceed Gemini's serving state limit.
+// The original Zod schemas still enforce every bound on the returned recipes locally.
 const geminiSchema = z.toJSONSchema(z.object({ options: z.array(draftOptionSchema).min(2).max(3) }), {
   unrepresentable: "any",
+  override: ({ jsonSchema }) => {
+    for (const constraint of ["minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"] as const) {
+      delete jsonSchema[constraint];
+    }
+  },
 });
 
 export async function generateWithGemini(request: PlanRequest, profile: UserProfile, pantry: PantryItem[], products: Product[], feedback?: string): Promise<unknown[]> {

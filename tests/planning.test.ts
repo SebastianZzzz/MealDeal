@@ -198,6 +198,7 @@ test("Gemini request uses structured JSON and code ignores invented prices", asy
     const body = JSON.parse(String(init?.body));
     assert.equal(body.generationConfig.responseMimeType, "application/json");
     assert.ok(body.generationConfig.responseJsonSchema.properties.options);
+    assert.doesNotMatch(JSON.stringify(body.generationConfig.responseJsonSchema), /"(?:minItems|maxItems|minLength|maxLength|minimum|maximum|exclusiveMinimum|exclusiveMaximum)"\s*:/);
     const cheap = { ...modelDraft(), shoppingCost: 0.01 };
     return geminiResponse([cheap, modelDraft(120)]);
   });
@@ -254,6 +255,14 @@ test("matches the rice, chicken and broccoli acceptance example", () => {
   assert.equal(result.costPerServing, 2.73);
   assert.equal(result.withinBudget, false);
   assert.deepEqual(result.leftovers.map((item) => item.qtyG), [1700, 600, 200]);
+});
+
+test("lean Gemini decoding leaves local recipe bounds enforced", () => {
+  assert.equal(draftOptionSchema.safeParse(draft(0)).success, false);
+  assert.equal(draftOptionSchema.safeParse(draft(100001)).success, false);
+  const plan = draft();
+  plan.recipes[0].title = "x".repeat(161);
+  assert.equal(draftOptionSchema.safeParse(plan).success, false);
 });
 
 const deal: DealCheck = {
