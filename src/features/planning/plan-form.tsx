@@ -82,7 +82,8 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
     const request: PlanRequest = {
       budget: Number(budget), servings: Number(servings), duration: duration === "one_meal" ? "one_meal" : "days",
       ...(duration !== "one_meal" ? { days: Number(days), mealsPerDay: Number(meals) } : {}),
-      batchCook, cuisines, meatVeg,
+      // Batch cooking only means something across several meals.
+      batchCook: duration !== "one_meal" && batchCook, cuisines, meatVeg,
       ...(maxMinutes ? { maxCookMinutes: Number(maxMinutes) } : {}), ...(note.trim() ? { note: note.trim() } : {}),
     };
     savePlanPrefs({ cuisines, meatVeg });
@@ -121,7 +122,7 @@ function MealDetails({ kitchen }: { kitchen: NonNullable<ReturnType<typeof readK
             <RangeField id="plan-days" label="Days" value={Number(days)} min={1} max={7} format={(value) => plural(value, "day")} onChange={(value) => setDays(String(value))} />
             <label className="field">Meals each day<select value={meals} onChange={(event) => setMeals(event.target.value)}><option value="1">Dinner</option><option value="2">Lunch + dinner</option><option value="3">Breakfast + lunch + dinner</option></select></label>
           </>}
-          <label className="planning-toggle"><input type="checkbox" checked={batchCook} onChange={(event) => setBatchCook(event.target.checked)} /><span><strong>Cook once, eat a few times</strong><small className="muted">Make extra portions and reuse ingredients.</small></span></label>
+          {duration !== "one_meal" && <label className="planning-toggle"><input type="checkbox" role="switch" className="switch" checked={batchCook} onChange={(event) => setBatchCook(event.target.checked)} /><span><strong>Cook once, eat a few times</strong><small className="muted">Make extra portions and reuse ingredients.</small></span></label>}
           <p className="planning-small muted">{plural(count, "meal")} · {plural(Number(servings) * count, "total portion")}</p>
         </section>
         <section className="planning-section planning-plain">

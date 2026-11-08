@@ -250,7 +250,7 @@ export function ReportForm() {
             </label>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 10 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44 }}>
-                <input type="checkbox" checked={item.isSale} onChange={(e) => update(item.key, { isSale: e.target.checked })} style={{ width: 22, height: 22 }} />
+                <input type="checkbox" role="switch" className="switch" checked={item.isSale} onChange={(e) => update(item.key, { isSale: e.target.checked })} />
                 On sale
               </label>
               <button className="chip" style={{ minHeight: 44 }} onClick={() => setItems((c) => c.filter((i) => i.key !== item.key))}>Remove</button>
