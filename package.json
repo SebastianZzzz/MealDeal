@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/features/catalog/*.test.mts",
+    "seed:catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-catalog-seed.mts",
     "test:planning": "tsc -p tsconfig.planning-tests.json && node --test .test-build/tests/planning.test.js"
   },
   "dependencies": {

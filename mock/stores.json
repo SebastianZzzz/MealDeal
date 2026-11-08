@@ -1,4 +1,26 @@
 [
-  { "id": "sample-store-west", "name": "West Campus Market (sample)", "chain": "Sample", "address": "Ponderosa area, Vancouver — fictional demo store", "lat": 49.262, "lng": -123.255 },
-  { "id": "sample-store-east", "name": "Neighbourhood Grocer (sample)", "chain": "Sample", "address": "UBC area, Vancouver — fictional demo store", "lat": 49.254, "lng": -123.239 }
+  {
+    "id": "save-on-foods@5945-berton-avenue",
+    "name": "Save-On-Foods · 5945 Berton Avenue",
+    "chain": "Save-On-Foods",
+    "address": "5945 Berton Avenue, Vancouver",
+    "lat": 49.2547297,
+    "lng": -123.2369077
+  },
+  {
+    "id": "no-frills@west-5th-avenue",
+    "name": "Jason's No Frills · West 5th Avenue",
+    "chain": "No Frills",
+    "address": "West 5th Avenue, Vancouver",
+    "lat": 49.2681104,
+    "lng": -123.186346
+  },
+  {
+    "id": "urban-fare@5380-university-boulevard",
+    "name": "Urban Fare · 5380 University Boulevard",
+    "chain": "Urban Fare",
+    "address": "5380 University Boulevard, Vancouver",
+    "lat": 49.2657768,
+    "lng": -123.2371132
+  }
 ]
