@@ -4,7 +4,7 @@ import { ArrowRight, Camera, HeartHandshake } from "lucide-react";
 export default function Home() {
   return (
     <main className="page home-page">
-      <p className="planning-eyebrow" style={{ marginTop: 4 }}>Vancouver · this week&apos;s prices</p>
+      <p className="planning-eyebrow" style={{ marginTop: 4 }}>This week&apos;s prices</p>
       <h1 className="home-title">How are you<br />eating today?</h1>
 
       <div className="home-grid">
