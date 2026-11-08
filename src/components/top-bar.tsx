@@ -76,7 +76,7 @@ function AccountSheet({ account, name, onClose }: { account: AccountState; name?
             {account === "signed-in" && <li><a href="/auth/logout"><LogOut size={20} />Log out</a></li>}
           </> : account === "signed-out"
             ? <li><a ref={(node) => { first.current = node; }} href="/auth/login?returnTo=/cook"><LogIn size={20} />Log in or sign up</a></li>
-            : <li><span className="muted" style={{ display: "block", padding: "16px 4px" }}>Log in is not configured on this server.</span></li>}
+            : <li><span className="muted" style={{ display: "block", padding: "16px 4px" }}>Log in isn&apos;t available on this preview link. Use the main MealDeal site to log in.</span></li>}
         </ul>
       </section>
     </>
